@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rymora V1.6 | Phone OTP</title>
+<style>
+:root{color-scheme:dark;--bg:#100b1d;--panel:#211632;--purple:#9338ee;--muted:#b8a7cb}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top right,#392050,transparent 48%),var(--bg);color:#fff;font-family:Arial,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:17px;background:#211632dd;border-bottom:1px solid #49315f}
+.logo{display:grid;place-items:center;width:47px;height:47px;border-radius:15px;background:linear-gradient(135deg,#6330e5,#dc40f5);font-size:29px;font-weight:900;box-shadow:0 0 18px #8535e577}
+.brand{font-size:25px;font-weight:bold}.muted{font-size:12px;color:var(--muted);margin-top:4px}
+#home{padding-bottom:90px}.search{display:block;width:calc(100% - 32px);margin:18px 16px;padding:14px;border:1px solid #4a3561;border-radius:16px;background:#2b203b;color:#fff;font-size:15px}
+h3{margin:20px 18px 12px}.friend{display:flex;align-items:center;gap:14px;margin:10px 14px;padding:15px;border-radius:18px;background:#271b3a;border:1px solid #443052;cursor:pointer}
+.avatar{display:grid;place-items:center;width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#7336e9,#ca48e7);font-weight:bold;font-size:22px;flex-shrink:0}
+.friend-info{flex:1;min-width:0}.friend-info b{display:block}.preview{color:var(--muted);font-size:13px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;background:#211632;padding:13px 3px;border-top:1px solid #49315f}
+nav button{border:0;background:none;color:#ddd;font-size:12px;cursor:pointer}nav span{display:block;font-size:22px;margin-bottom:4px}
+#chatPage{display:none;position:fixed;inset:0;background:#100b1d;z-index:3;flex-direction:column}
+.back{background:none;border:0;color:#fff;font-size:30px;padding:4px 8px}
+#messages{flex:1;overflow-y:auto;padding:18px}
+.bubble{width:fit-content;max-width:80%;background:#342544;border-radius:17px;padding:12px 14px;margin:10px 0;overflow-wrap:anywhere}
+.bubble.mine{margin-left:auto;background:linear-gradient(135deg,#7028e4,#b640e9)}
+.status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;background:#777}.status-dot.online{background:#31d780}.seen{color:#72cfff;font-weight:bold;margin-left:6px}.time{display:block;text-align:right;font-size:10px;opacity:.75;margin-top:5px}
+.compose{display:flex;gap:8px;padding:12px;background:#211632}.compose input{flex:1;min-width:0;border:0;border-radius:25px;background:#382947;color:#fff;padding:13px;font-size:15px}
+.compose button{border:0;border-radius:24px;padding:0 18px;color:#fff;background:#8739e8;font-weight:bold}
+.empty{color:var(--muted);text-align:center;padding:25px}
+
+#profilePage{display:none;position:fixed;inset:0;z-index:5;overflow-y:auto;background:#100b1d}
+.profile-card{margin:20px 16px;padding:24px 18px;background:#271b3a;border-radius:22px;text-align:center}
+.profile-pic{height:100px;width:100px;border-radius:50%;object-fit:cover;background:linear-gradient(135deg,#7432e9,#cc40ee);display:block;margin:0 auto 14px;border:3px solid #a65df1}
+.profile-initial{height:100px;width:100px;border-radius:50%;background:linear-gradient(135deg,#7432e9,#cc40ee);display:grid;place-items:center;font-size:48px;font-weight:bold;margin:0 auto 14px}
+.profile-card label{display:block;text-align:left;margin:15px 0 5px;color:#d4c5e4}
+.profile-card input:not([type=file]),.profile-card textarea{width:100%;padding:13px;background:#382947;color:white;border:1px solid #624477;border-radius:12px;font-size:15px}
+.profile-card textarea{min-height:78px;resize:vertical}
+.action{border:0;border-radius:13px;background:#8739e8;color:white;padding:12px 20px;font-weight:bold;margin-top:16px}
+.note{font-size:12px;color:#b8a7cb;line-height:1.5}
+#photoTap{border:0;background:transparent;color:#cdbde0;display:flex;align-items:center;flex-direction:column;gap:8px;margin:0 auto;cursor:pointer;font:inherit}
+#photoTap #photoPreview{pointer-events:none;margin-bottom:0}
+.photo-caption{font-size:13px}
+#cropOverlay{position:fixed;inset:0;z-index:20;background:#100b1d;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:18px}
+#cropCanvas{width:min(85vw,350px);height:min(85vw,350px);border-radius:50%;touch-action:none;cursor:grab;border:3px solid #a65df1;background:#241735}
+#zoomRange{width:min(85vw,350px);accent-color:#a65df1}
+.crop-actions{display:flex;gap:12px}
+.crop-actions button{border:0;border-radius:12px;padding:13px 23px;background:#8535d9;color:white;font-weight:bold}
+.crop-actions button:first-child{background:#493657}
+
+#contactsPage{display:none;position:fixed;inset:0;z-index:6;background:#100b1d;overflow-y:auto}
+.contact-card{margin:10px 16px;padding:14px;background:#271b3a;border-radius:16px;display:flex;align-items:center;gap:12px}
+.contact-card .details{flex:1;min-width:0}.contact-card small{display:block;color:#b8a7cb;margin-top:5px}
+.contact-card button{border:0;border-radius:11px;padding:10px 13px;background:#8739e8;color:#fff;font-weight:bold}
+.contact-card button:disabled{background:#51445f;color:#ddd}
+
+#authGate{position:fixed;inset:0;z-index:30;overflow-y:auto;background:radial-gradient(circle at top right,#412153,#100b1d 65%);padding:45px 20px}
+.auth-panel{max-width:460px;margin:20px auto;padding:24px 20px;background:#211632;border:1px solid #503366;border-radius:24px}
+.auth-panel h2{margin:12px 0}.auth-panel label{display:block;color:#d7c6e7;margin:14px 0 7px}
+.auth-panel input,.auth-panel select{width:100%;padding:13px;background:#342544;border:1px solid #624477;border-radius:12px;color:white;font-size:16px}
+.auth-panel button{width:100%;padding:13px;border:0;border-radius:12px;background:#8739e8;color:white;font-weight:bold;margin-top:14px}
+.auth-panel button.secondary{background:#453454}
+.auth-hint{color:#c4b3d6;font-size:13px;line-height:1.6}
+#otpSection{display:none}#authNotice{min-height:20px;color:#ffd29e;font-size:13px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="authGate">
+  <div class="auth-panel">
+    <div class="logo">R</div><h2>Welcome to Rymora</h2>
+    <p class="auth-hint">Sign in with your phone number. First-time users set up their profile after verification.</p>
+    <div id="phoneSection">
+      <label for="countryCode">Country code</label>
+      <select id="countryCode">
+        <option value="+880">Bangladesh (+880)</option>
+        <option value="+91">India (+91)</option>
+        <option value="+1">USA / Canada (+1)</option>
+        <option value="+44">United Kingdom (+44)</option>
+        <option value="+966">Saudi Arabia (+966)</option>
+        <option value="+971">UAE (+971)</option>
+        <option value="custom">Other country code</option>
+      </select>
+      <label for="customCountryCode" id="customCountryLabel" style="display:none">Country calling code (e.g. +49)</label>
+      <input id="customCountryCode" placeholder="+49" style="display:none">
+      <label for="phoneNumber">Phone number</label>
+      <input id="phoneNumber" type="tel" inputmode="tel" placeholder="Enter phone number">
+      <div id="recaptcha-container" style="margin-top:16px"></div>
+      <button id="sendOtpButton" onclick="sendRymoraOtp()">Send OTP</button>
+    </div>
+    <div id="otpSection">
+      <label for="otpCode">6-digit verification code</label>
+      <input id="otpCode" inputmode="numeric" maxlength="6" placeholder="123456">
+      <button id="verifyOtpButton" onclick="verifyRymoraOtp()">Verify OTP</button>
+      <button class="secondary" onclick="backToPhone()">Change number / Resend</button>
+    </div>
+    <p id="authNotice" role="status"></p>
+    <p class="auth-hint">Firebase test number: +16505553434, code: 123456. No SMS is sent for this test number. Real OTP needs supported hosting and billing setup.</p>
+    <button id="demoButton" class="secondary" onclick="openDemoMode()" style="display:none">Preview existing chats (offline demo)</button>
+    <p class="auth-hint" id="localFileWarning"></p>
+  </div>
+</div>
+<div id="home">
+<header><div class="logo">R</div><div><div class="brand">Rymora</div><div class="muted">Connect Beyond Limits</div></div></header>
+<input class="search" id="search" placeholder="🔍 Search conversations..." oninput="filterFriends()">
+<div style="display:flex;gap:8px;margin:0 16px;flex-wrap:wrap">
+<button onclick="exportChats()" style="padding:11px;border:0;border-radius:12px;background:#8739e8;color:white">💾 Backup Chats</button>
+<label style="padding:11px;border-radius:12px;background:#342544;color:white">📂 Restore Chats<input type="file" id="restoreFile" accept=".json,application/json" style="display:none" onchange="importChats(event)"></label>
+</div>
+<p style="color:#b8a7cb;font-size:12px;margin:12px 17px">Chrome may not save messages from a downloaded HTML file. Backup after chatting and Restore when reopening. Online and tick indicators are simulations, not real user activity or message delivery. Backup now includes your profile.</p>
+<h3>Messages</h3>
+<div id="friendList"></div>
+<nav>
+<button onclick="showTab('Chats')"><span>💬</span>Chats</button>
+<button onclick="showTab('Calls')"><span>📞</span>Calls</button>
+<button onclick="showTab('Contacts')"><span>👥</span>Contacts</button>
+<button onclick="showTab('Profile')"><span>👤</span>Profile</button>
+</nav>
+</div>
+<div id="contactsPage">
+<header><button class="back" onclick="closeContacts()" aria-label="Back">‹</button><div class="brand">Find Contacts</div></header>
+<p class="note" style="margin:18px 16px">Search the sample usernames below. These are demo contacts, not real Rymora users.</p>
+<input class="search" id="contactSearch" placeholder="Search username (e.g. nabila_07)" oninput="renderContacts()">
+<h3>Sample users</h3><div id="contactResults"></div>
+<p class="note" style="margin:18px 16px">Added contacts appear in Messages. Use Backup Chats to save them.</p>
+</div>
+<div id="profilePage">
+<header><button class="back" onclick="closeProfile()" aria-label="Back">‹</button><div class="brand">My Profile</div></header>
+<div class="profile-card">
+<button type="button" id="photoTap" onclick="document.getElementById('photoInput').click()" aria-label="Add or change profile picture"><div id="photoPreview" class="profile-initial">R</div><span class="photo-caption">Tap photo to add or change</span></button>
+<input id="photoInput" type="file" accept="image/*" onchange="choosePhoto(event)" style="display:none">
+<label for="profileName">Your name</label><input id="profileName" maxlength="50" placeholder="e.g. Raju Chowdhury" oninput="suggestUsernames()">
+<label for="profileUsername">Your username</label><input id="profileUsername" maxlength="50" placeholder="@raju or Raju Chowdhury" oninput="updateUsernamePreview();hideUsernameSuggestions()"><div id="usernamePreview" class="note" style="text-align:left;margin-top:6px">Your username: @...</div><div id="suggestionTitle" style="text-align:left;margin-top:14px;color:#dfc9f9;font-weight:bold">Username suggestions — tap to choose</div><div id="usernameSuggestions" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+<div class="note" style="text-align:left;margin-top:5px">Type a name or tap a suggestion. Spaces become underscores and @ is added automatically.</div>
+<label for="profileBio">Bio / About</label><textarea id="profileBio" maxlength="160" placeholder="Tell people about yourself"></textarea>
+<button class="action" onclick="saveProfile()">Save Profile</button>
+<p id="profileResult" class="note"></p>
+<p class="note">This is a local demo profile. Chrome may not keep data when you reopen an HTML file. After Save Profile, use Backup Chats on the home screen to keep a copy. Next time use Restore Chats on the home screen.</p>
+</div></div>
+<div id="cropOverlay" role="dialog" aria-modal="true" aria-label="Crop profile photo">
+<h2>Crop profile photo</h2>
+<p class="note">Drag to position the photo, or use the slider to zoom.</p>
+<canvas id="cropCanvas" width="320" height="320"></canvas>
+<label for="zoomRange">Zoom</label><input id="zoomRange" type="range" min="1" max="3" step="0.01" value="1" oninput="drawCrop()">
+<div class="crop-actions"><button type="button" onclick="cancelCrop()">Cancel</button><button type="button" onclick="applyCrop()">Use photo</button></div>
+</div>
+<div id="chatPage">
+<header><button class="back" onclick="goBack()" aria-label="Back">‹</button><div class="avatar" id="chatAvatar"></div><div><div class="brand" id="chatName"></div><div class="muted" id="chatStatus">Demo status</div></div></header>
+<div id="messages"></div>
+<form class="compose" id="messageForm"><input id="messageInput" placeholder="Type a message..." autocomplete="off"><button type="submit">Send</button></form>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script>
+
+const firebaseConfig={
+ apiKey:"AIzaSyBhJSni0r9SEyDaPmLKF_MZmlMMvBkm56w",
+ authDomain:"rymora.firebaseapp.com",
+ projectId:"rymora",
+ storageBucket:"rymora.firebasestorage.app",
+ messagingSenderId:"1097264616928",
+ appId:"1:1097264616928:web:35fce6bec344f5e2fc8785"
+};
+let rymoraAuth=null,confirmationResult=null,recaptchaVerifier=null,previewMode=false;
+const isLocalFile=location.protocol==="file:"||location.protocol==="content:";
+function authMessage(message){document.getElementById("authNotice").textContent=message;}
+document.getElementById("countryCode").addEventListener("change",function(){
+ const other=this.value==="custom";
+ document.getElementById("customCountryCode").style.display=other?"block":"none";
+ document.getElementById("customCountryLabel").style.display=other?"block":"none";
+});
+function openDemoMode(){
+ previewMode=true;
+ document.getElementById("authGate").style.display="none";
+ authMessage("");
+}
+function backToPhone(){
+ confirmationResult=null;
+ document.getElementById("otpSection").style.display="none";
+ document.getElementById("phoneSection").style.display="block";
+ authMessage("Enter your number to request another code.");
+}
+function normalizedPhone(){
+ const selection=document.getElementById("countryCode").value;
+ const code=selection==="custom"?document.getElementById("customCountryCode").value.trim():selection;
+ let number=document.getElementById("phoneNumber").value.replace(/[\s()-]/g,"");
+ if(!/^\+\d{1,4}$/.test(code))throw Error("Enter a valid country calling code.");
+ if(number.startsWith("+"))return number;
+ number=number.replace(/^0+/,"");
+ if(!/^\d{5,14}$/.test(number))throw Error("Enter a valid phone number.");
+ return code+number;
+}
+async function sendRymoraOtp(){
+ if(!rymoraAuth){authMessage("Firebase login needs a hosted HTTPS page. Use Preview for the local HTML demo.");return;}
+ const button=document.getElementById("sendOtpButton");button.disabled=true;
+ try{
+  const phone=normalizedPhone();
+  if(!recaptchaVerifier){
+   recaptchaVerifier=new firebase.auth.RecaptchaVerifier("recaptcha-container",{"size":"normal"});
+   await recaptchaVerifier.render();
+  }
+  confirmationResult=await rymoraAuth.signInWithPhoneNumber(phone,recaptchaVerifier);
+  document.getElementById("phoneSection").style.display="none";
+  document.getElementById("otpSection").style.display="block";
+  authMessage("Enter the verification code. Test numbers do not receive an SMS.");
+ }catch(e){
+  authMessage("Could not send OTP: "+(e.message||"Please try again."));
+  if(recaptchaVerifier){try{recaptchaVerifier.clear();}catch(_){}recaptchaVerifier=null;}
+  document.getElementById("recaptcha-container").replaceChildren();
+ }finally{button.disabled=false;}
+}
+async function verifyRymoraOtp(){
+ if(!confirmationResult){authMessage("Request an OTP first.");return;}
+ const code=document.getElementById("otpCode").value.trim();
+ if(!/^\d{6}$/.test(code)){authMessage("Enter the 6-digit code.");return;}
+ const button=document.getElementById("verifyOtpButton");button.disabled=true;
+ try{
+  await confirmationResult.confirm(code);
+  authMessage("Verified!");
+ }catch(e){authMessage("Verification failed: "+(e.message||"Try again."));}
+ finally{button.disabled=false;}
+}
+function onSignedIn(user){
+ document.getElementById("authGate").style.display="none";
+ const key="rymora_profile_setup_"+user.uid;
+ let done=false;try{done=localStorage.getItem(key)==="yes";}catch(e){}
+ if(!done){
+  openProfile();
+  document.getElementById("profileResult").textContent="Complete and save your profile to finish registration.";
+ }
+}
+function initRymoraAuth(){
+ if(isLocalFile){
+  document.getElementById("demoButton").style.display="block";
+  document.getElementById("localFileWarning").textContent="This downloaded HTML file can preview chats, but Firebase Phone OTP requires an authorized hosted website.";
+  document.getElementById("sendOtpButton").disabled=true;
+  return;
+ }
+ if(!window.firebase||!firebase.auth){
+  authMessage("Firebase SDK did not load. Check internet connection.");
+  return;
+ }
+ try{
+  firebase.initializeApp(firebaseConfig);
+  rymoraAuth=firebase.auth();
+  rymoraAuth.onAuthStateChanged(user=>{
+   if(user)onSignedIn(user);
+   else if(!previewMode)document.getElementById("authGate").style.display="block";
+  });
+ }catch(e){authMessage("Firebase initialization failed: "+e.message);}
+}
+
+const names=["Rahim","Ayesha","Sami"];
+const directory=[
+ {name:"Nabila",username:"nabila_07"},
+ {name:"Arif",username:"arif_2026"},
+ {name:"Tanvir",username:"tanvir_bd"},
+ {name:"Mim",username:"mim_21"}
+];
+const contactsKey="rymora_demo_contacts_v1";
+let addedContacts=[];
+try{const c=JSON.parse(localStorage.getItem(contactsKey));if(Array.isArray(c))addedContacts=c.filter(u=>directory.some(d=>d.username===u));}catch(e){}
+function persistContacts(){try{localStorage.setItem(contactsKey,JSON.stringify(addedContacts));}catch(e){}}
+function allNames(){return [...names,...directory.filter(d=>addedContacts.includes(d.username)).map(d=>d.name)];}
+
+const onlineStatus={Rahim:true,Ayesha:false,Sami:true};
+const lastSeen={Rahim:"",Ayesha:"today at 9:30 AM",Sami:""};
+const samples={Rahim:"Hey! How are you? 💜",Ayesha:"See you tomorrow! 😊",Sami:"Let's talk later."};
+const key="rymora_demo_chats_v1";
+const profileKey="rymora_demo_profile_v1";
+let profile={name:"Rymora User",username:"",bio:"",photo:""};
+try{
+ const p=JSON.parse(localStorage.getItem(profileKey));
+ if(p&&typeof p==="object"){
+  profile={name:String(p.name||"Rymora User").slice(0,50),username:String(p.username||"").slice(0,24),bio:String(p.bio||"").slice(0,160),photo:typeof p.photo==="string"&&p.photo.startsWith("data:image/")?p.photo:""};
+ }
+}catch(e){}
+
+let chats={Rahim:[],Ayesha:[],Sami:[]};
+let currentChat="";
+try{
+  const saved=JSON.parse(localStorage.getItem(key));
+  if(saved && typeof saved==="object"){
+    Object.keys(saved).forEach(n=>{if(allNames().includes(n)&&Array.isArray(saved[n]))chats[n]=saved[n].filter(m=>m&&typeof m.text==="string"&&typeof m.time==="string");});
+  }
+}catch(e){console.log("Storage unavailable",e);}
+function saveChats(){
+  try{localStorage.setItem(key,JSON.stringify(chats));}
+  catch(e){console.log("Messages not saved",e);}
+}
+function renderFriends(){
+  const list=document.getElementById("friendList");
+  list.innerHTML="";
+  allNames().forEach(n=>{
+    const row=document.createElement("div");row.className="friend";row.onclick=()=>openChat(n);
+    const avatar=document.createElement("div");avatar.className="avatar";avatar.textContent=n[0];
+    const info=document.createElement("div");info.className="friend-info";
+    const title=document.createElement("b");title.textContent=n;
+    const preview=document.createElement("div");preview.className="preview";
+    preview.textContent=chats[n]&&chats[n].length?chats[n][chats[n].length-1].text:(samples[n]||"Start a conversation");
+    const status=document.createElement("div");status.className="muted";
+    const dot=document.createElement("span");dot.className="status-dot"+(onlineStatus[n]?" online":"");
+    status.append(dot,document.createTextNode(onlineStatus[n]?"Online (demo)":(lastSeen[n]?"Last seen "+lastSeen[n]+" (demo)":"Offline (demo)")));
+    info.append(title,status,preview);row.append(avatar,info);list.appendChild(row);
+  });
+  filterFriends();
+}
+function filterFriends(){
+  const term=document.getElementById("search").value.trim().toLowerCase();
+  document.querySelectorAll(".friend").forEach((row,i)=>{
+    row.style.display=allNames()[i].toLowerCase().includes(term)?"flex":"none";
+  });
+}
+function openChat(name){
+  currentChat=name;
+  if(!Array.isArray(chats[name]))chats[name]=[];
+  document.getElementById("chatName").textContent=name;
+  document.getElementById("chatAvatar").textContent=name[0];
+  document.getElementById("chatStatus").textContent=onlineStatus[name]?"Online (demo)":(lastSeen[name]?"Last seen "+lastSeen[name]+" (demo)":"Offline (demo)");
+  document.getElementById("chatPage").style.display="flex";
+  renderMessages();
+}
+function renderMessages(){
+  const box=document.getElementById("messages");box.innerHTML="";
+  if(!chats[currentChat].length){
+    const empty=document.createElement("p");empty.className="empty";
+    empty.textContent="Start your demo conversation 💜";box.appendChild(empty);
+  }
+  chats[currentChat].forEach(m=>{
+    const bubble=document.createElement("div");bubble.className="bubble mine";
+    const txt=document.createElement("div");txt.textContent=m.text;
+    const time=document.createElement("span");time.className="time";
+    time.textContent=m.time+"  ";
+    const ticks=document.createElement("span");ticks.className="seen";
+    ticks.textContent=onlineStatus[currentChat]?"✓✓":"✓";
+    ticks.title="Demo only: not actual delivery or read receipts";
+    time.appendChild(ticks);
+    bubble.append(txt,time);box.appendChild(bubble);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+document.getElementById("messageForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  const input=document.getElementById("messageInput");
+  const text=input.value.trim();
+  if(!text||!currentChat)return;
+  chats[currentChat].push({text,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})});
+  saveChats();input.value="";renderMessages();
+});
+function goBack(){
+  document.getElementById("chatPage").style.display="none";
+  currentChat="";renderFriends();
+}
+function showTab(tab){
+ if(tab==="Profile"){openProfile();return;}
+ if(tab==="Contacts"){openContacts();return;}
+ if(tab!=="Chats")alert(tab+" feature coming soon! 💜");
+}
+function openContacts(){
+ document.getElementById("contactsPage").style.display="block";
+ renderContacts();
+}
+function closeContacts(){
+ document.getElementById("contactsPage").style.display="none";
+ renderFriends();
+}
+function renderContacts(){
+ const q=document.getElementById("contactSearch").value.trim().toLowerCase().replace(/^@/,"");
+ const box=document.getElementById("contactResults");box.replaceChildren();
+ const found=directory.filter(d=>d.username.includes(q)||d.name.toLowerCase().includes(q));
+ if(!found.length){const p=document.createElement("p");p.className="empty";p.textContent="No demo users found";box.appendChild(p);return;}
+ found.forEach(d=>{
+  const row=document.createElement("div");row.className="contact-card";
+  const avatar=document.createElement("div");avatar.className="avatar";avatar.textContent=d.name[0];
+  const details=document.createElement("div");details.className="details";
+  const title=document.createElement("b");title.textContent=d.name;
+  const username=document.createElement("small");username.textContent="@"+d.username;
+  details.append(title,username);
+  const button=document.createElement("button");
+  const added=addedContacts.includes(d.username);
+  button.textContent=added?"Added":"Add";
+  button.disabled=added;
+  button.onclick=()=>{
+   if(!addedContacts.includes(d.username)){
+    addedContacts.push(d.username);chats[d.name]=chats[d.name]||[];
+    persistContacts();saveChats();renderContacts();renderFriends();
+   }
+  };
+  row.append(avatar,details,button);box.appendChild(row);
+ });
+}
+function renderProfilePhoto(){
+ const holder=document.getElementById("photoPreview");
+ holder.replaceChildren();
+ if(profile.photo){
+  const img=document.createElement("img");
+  img.className="profile-pic";img.src=profile.photo;img.alt="Profile photo";
+  holder.replaceWith(img);img.id="photoPreview";
+ }else{
+  const div=document.createElement("div");
+  div.id="photoPreview";div.className="profile-initial";
+  div.textContent=(profile.name.trim()[0]||"R").toUpperCase();
+  holder.replaceWith(div);
+ }
+}
+function openProfile(){
+ document.getElementById("profilePage").style.display="block";
+ document.getElementById("profileName").value=profile.name;
+ document.getElementById("profileUsername").value=profile.username;
+ document.getElementById("profileBio").value=profile.bio;
+ document.getElementById("profileResult").textContent="";
+ renderProfilePhoto();suggestUsernames();updateUsernamePreview();
+ if(profile.username)hideUsernameSuggestions();
+}
+function closeProfile(){document.getElementById("profilePage").style.display="none";}
+let cropImage=null,cropX=0,cropY=0,cropBase=1,cropPointer=null;
+function choosePhoto(event){
+ const file=event.target.files[0];event.target.value="";
+ if(!file)return;
+ if(!file.type.startsWith("image/")){alert("Please choose an image.");return;}
+ if(file.size>12000000){alert("Please choose an image smaller than 12 MB.");return;}
+ const reader=new FileReader();
+ reader.onload=()=>{
+  const img=new Image();
+  img.onload=()=>{
+   cropImage=img;cropBase=Math.max(320/img.width,320/img.height);
+   cropX=0;cropY=0;
+   document.getElementById("zoomRange").value="1";
+   document.getElementById("cropOverlay").style.display="flex";
+   drawCrop();
+  };
+  img.onerror=()=>alert("Could not open this photo.");
+  img.src=reader.result;
+ };
+ reader.readAsDataURL(file);
+}
+function drawCrop(){
+ if(!cropImage)return;
+ const canvas=document.getElementById("cropCanvas"),ctx=canvas.getContext("2d");
+ const zoom=Number(document.getElementById("zoomRange").value);
+ const w=cropImage.width*cropBase*zoom,h=cropImage.height*cropBase*zoom;
+ cropX=Math.min(Math.max(cropX,(320-w)/2),(w-320)/2);
+ cropY=Math.min(Math.max(cropY,(320-h)/2),(h-320)/2);
+ ctx.clearRect(0,0,320,320);
+ ctx.drawImage(cropImage,(320-w)/2+cropX,(320-h)/2+cropY,w,h);
+}
+const cropCanvas=document.getElementById("cropCanvas");
+cropCanvas.addEventListener("pointerdown",e=>{cropPointer={id:e.pointerId,x:e.clientX,y:e.clientY};cropCanvas.setPointerCapture(e.pointerId);});
+cropCanvas.addEventListener("pointermove",e=>{
+ if(!cropPointer||e.pointerId!==cropPointer.id)return;
+ const scale=320/cropCanvas.getBoundingClientRect().width;
+ cropX+=(e.clientX-cropPointer.x)*scale;cropY+=(e.clientY-cropPointer.y)*scale;
+ cropPointer.x=e.clientX;cropPointer.y=e.clientY;drawCrop();
+});
+cropCanvas.addEventListener("pointerup",()=>cropPointer=null);
+cropCanvas.addEventListener("pointercancel",()=>cropPointer=null);
+function cancelCrop(){cropImage=null;document.getElementById("cropOverlay").style.display="none";}
+function applyCrop(){
+ if(!cropImage)return;
+ drawCrop();
+ const output=document.createElement("canvas");output.width=256;output.height=256;
+ output.getContext("2d").drawImage(cropCanvas,0,0,256,256);
+ profile.photo=output.toDataURL("image/jpeg",0.82);
+ cancelCrop();renderProfilePhoto();
+ document.getElementById("profileResult").textContent="Photo cropped. Tap Save Profile, then Backup Chats.";
+}
+function cleanUsername(value){
+ return String(value||"").trim().toLowerCase().replace(/^@+/,"").replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,"").replace(/_+/g,"_").replace(/^_+|_+$/g,"").slice(0,24);
+}
+function hideUsernameSuggestions(){
+ document.getElementById("usernameSuggestions").replaceChildren();
+ document.getElementById("suggestionTitle").style.display="none";
+}
+function suggestUsernames(){
+ const name=document.getElementById("profileName").value;
+ const base=cleanUsername(name)||"rymora_user";
+ const first=base.split("_")[0]||"rymora";
+ const candidates=[base,first+"_official"];
+ const box=document.getElementById("usernameSuggestions");box.replaceChildren();
+ document.getElementById("suggestionTitle").style.display="block";
+ [...new Set(candidates.map(cleanUsername))].forEach(value=>{
+  if(value.length<3)return;
+  const button=document.createElement("button");
+  button.type="button";button.textContent="@"+value;
+  button.style.cssText="background:#4b2d71;color:white;border:1px solid #8f57c2;border-radius:18px;padding:9px 12px;cursor:pointer";
+  button.onclick=()=>{document.getElementById("profileUsername").value=value;updateUsernamePreview();hideUsernameSuggestions();};
+  box.appendChild(button);
+ });
+}
+function updateUsernamePreview(){
+ const value=cleanUsername(document.getElementById("profileUsername").value);
+ document.getElementById("usernamePreview").textContent=value?"Your username: @"+value:"Your username: @...";
+}
+function saveProfile(){
+ const name=document.getElementById("profileName").value.trim();
+ const username=cleanUsername(document.getElementById("profileUsername").value||name);
+ const bio=document.getElementById("profileBio").value.trim();
+ if(!name){alert("Please enter your name.");return;}
+ if(username.length<3){alert("Please use at least 3 English letters or numbers for your username.");return;}
+ profile.name=name;profile.username=username;profile.bio=bio;
+ document.getElementById("profileUsername").value=username;
+ let saved=false;
+ try{localStorage.setItem(profileKey,JSON.stringify(profile));saved=true;}catch(e){}
+ document.getElementById("profileResult").textContent=(saved?"Saved locally! ":"Updated for this session! ")+"Your username is @"+username+". Use Backup Chats on the home screen to keep it after reopening.";
+ renderProfilePhoto();updateUsernamePreview();hideUsernameSuggestions();
+}
+function exportChats(){
+  const backup={app:"Rymora",version:4,chats:chats,profile:profile,addedContacts:addedContacts};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download="Rymora_Chat_Backup.json";
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function importChats(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    try{
+      const data=JSON.parse(reader.result);
+      if(!data||!data.chats||typeof data.chats!=="object")throw Error("Invalid backup");
+      if(Array.isArray(data.addedContacts)){
+        addedContacts=data.addedContacts.filter(u=>directory.some(d=>d.username===u));
+        persistContacts();
+      }
+      allNames().forEach(n=>{
+        chats[n]=Array.isArray(data.chats[n])?data.chats[n].filter(m=>m&&typeof m.text==="string"&&typeof m.time==="string"):[];
+      });
+      saveChats();renderFriends();
+      if(data.profile&&typeof data.profile==="object"){
+       const p=data.profile;
+       profile={name:String(p.name||"Rymora User").slice(0,50),username:/^[a-z0-9_]{3,24}$/.test(p.username||"")?p.username:"",bio:String(p.bio||"").slice(0,160),photo:typeof p.photo==="string"&&p.photo.startsWith("data:image/")?p.photo:""};
+       try{localStorage.setItem(profileKey,JSON.stringify(profile));}catch(e){}
+      }
+      alert("Backup restored successfully! 💜");
+    }catch(err){alert("Could not restore this file. Choose a Rymora chat backup.");}
+    event.target.value="";
+  };
+  reader.readAsText(file);
+}
+renderFriends();
+initRymoraAuth();
+</script>
+</body>
+</html>
