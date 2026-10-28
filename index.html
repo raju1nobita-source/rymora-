@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rymora V1.6 | Phone OTP</title>
+<title>Rymora V1.7 | Cloud Profile</title>
 <style>
 :root{color-scheme:dark;--bg:#100b1d;--panel:#211632;--purple:#9338ee;--muted:#b8a7cb}
 *{box-sizing:border-box}
@@ -132,7 +132,7 @@ nav button{border:0;background:none;color:#ddd;font-size:12px;cursor:pointer}nav
 <label for="profileBio">Bio / About</label><textarea id="profileBio" maxlength="160" placeholder="Tell people about yourself"></textarea>
 <button class="action" onclick="saveProfile()">Save Profile</button>
 <p id="profileResult" class="note"></p>
-<p class="note">This is a local demo profile. Chrome may not keep data when you reopen an HTML file. After Save Profile, use Backup Chats on the home screen to keep a copy. Next time use Restore Chats on the home screen.</p>
+<p class="note">Name, username and bio are saved to Firestore after OTP login. Profile photo remains on this device only. Demo mode saves locally.</p>
 </div></div>
 <div id="cropOverlay" role="dialog" aria-modal="true" aria-label="Crop profile photo">
 <h2>Crop profile photo</h2>
@@ -148,6 +148,7 @@ nav button{border:0;background:none;color:#ddd;font-size:12px;cursor:pointer}nav
 </div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 
 const firebaseConfig={
@@ -217,14 +218,38 @@ async function verifyRymoraOtp(){
  }catch(e){authMessage("Verification failed: "+(e.message||"Try again."));}
  finally{button.disabled=false;}
 }
-function onSignedIn(user){
+let rymoraDb=null;
+let cloudProfileLoaded=false;
+let profileLoading=false;
+async function onSignedIn(user){
  document.getElementById("authGate").style.display="none";
- const key="rymora_profile_setup_"+user.uid;
- let done=false;try{done=localStorage.getItem(key)==="yes";}catch(e){}
- if(!done){
+ if(!rymoraDb)return;
+ profileLoading=true;
+ try{
+  const snap=await rymoraDb.collection("users").doc(user.uid).get();
+  if(rymoraAuth.currentUser?.uid!==user.uid)return;
+  if(snap.exists){
+   const p=snap.data()||{};
+   profile.name=String(p.name||"Rymora User").slice(0,50);
+   profile.username=cleanUsername(p.username);
+   profile.bio=String(p.bio||"").slice(0,160);
+   // Photo stays local; do not import a photo from another account.
+   profile.photo="";
+   try{localStorage.setItem(profileKey,JSON.stringify(profile));}catch(_){}
+   cloudProfileLoaded=true;
+   if(document.getElementById("profilePage").style.display==="block")openProfile();
+  }else{
+   cloudProfileLoaded=true;
+   // Avoid reusing another account's local profile.
+   profile={name:"Rymora User",username:"",bio:"",photo:""};
+   openProfile();
+   document.getElementById("profileResult").textContent="Complete and save your profile to finish registration.";
+  }
+ }catch(e){
+  cloudProfileLoaded=false;
   openProfile();
-  document.getElementById("profileResult").textContent="Complete and save your profile to finish registration.";
- }
+  document.getElementById("profileResult").textContent="Could not load cloud profile: "+e.message+". Check internet and Firestore rules.";
+ }finally{profileLoading=false;}
 }
 function initRymoraAuth(){
  if(isLocalFile){
@@ -233,13 +258,14 @@ function initRymoraAuth(){
   document.getElementById("sendOtpButton").disabled=true;
   return;
  }
- if(!window.firebase||!firebase.auth){
+ if(!window.firebase||!firebase.auth||!firebase.firestore){
   authMessage("Firebase SDK did not load. Check internet connection.");
   return;
  }
  try{
   firebase.initializeApp(firebaseConfig);
   rymoraAuth=firebase.auth();
+  rymoraDb=firebase.firestore();
   rymoraAuth.onAuthStateChanged(user=>{
    if(user)onSignedIn(user);
    else if(!previewMode)document.getElementById("authGate").style.display="block";
@@ -488,17 +514,30 @@ function updateUsernamePreview(){
  const value=cleanUsername(document.getElementById("profileUsername").value);
  document.getElementById("usernamePreview").textContent=value?"Your username: @"+value:"Your username: @...";
 }
-function saveProfile(){
+async function saveProfile(){
  const name=document.getElementById("profileName").value.trim();
  const username=cleanUsername(document.getElementById("profileUsername").value||name);
  const bio=document.getElementById("profileBio").value.trim();
  if(!name){alert("Please enter your name.");return;}
  if(username.length<3){alert("Please use at least 3 English letters or numbers for your username.");return;}
- profile.name=name;profile.username=username;profile.bio=bio;
+ const user=rymoraAuth?.currentUser;
+ const result=document.getElementById("profileResult");
+ if(user){
+  if(profileLoading||!cloudProfileLoaded){result.textContent="Cloud profile is not ready. Wait or refresh and try again.";return;}
+  result.textContent="Saving to cloud...";
+  try{
+   await rymoraDb.collection("users").doc(user.uid).set({name:name.slice(0,50),username,bio:bio.slice(0,160),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+   if(rymoraAuth.currentUser?.uid!==user.uid)return;
+   profile.name=name.slice(0,50);profile.username=username;profile.bio=bio.slice(0,160);
+   try{localStorage.setItem(profileKey,JSON.stringify(profile));}catch(_){}
+   result.textContent="Saved to Firebase Cloud! Your username is @"+username+". Photo remains on this device.";
+  }catch(e){result.textContent="Cloud save failed: "+e.message;return;}
+ }else{
+  profile.name=name.slice(0,50);profile.username=username;profile.bio=bio.slice(0,160);
+  try{localStorage.setItem(profileKey,JSON.stringify(profile));}catch(_){}
+  result.textContent="Saved locally (demo mode). Cloud saving requires OTP login.";
+ }
  document.getElementById("profileUsername").value=username;
- let saved=false;
- try{localStorage.setItem(profileKey,JSON.stringify(profile));saved=true;}catch(e){}
- document.getElementById("profileResult").textContent=(saved?"Saved locally! ":"Updated for this session! ")+"Your username is @"+username+". Use Backup Chats on the home screen to keep it after reopening.";
  renderProfilePhoto();updateUsernamePreview();hideUsernameSuggestions();
 }
 function exportChats(){
