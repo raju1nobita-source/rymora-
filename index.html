@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rymora V1.7 | Cloud Profile</title>
+<title>Rymora V1.7.1 | Account Switch</title>
 <style>
 :root{color-scheme:dark;--bg:#100b1d;--panel:#211632;--purple:#9338ee;--muted:#b8a7cb}
 *{box-sizing:border-box}
@@ -131,6 +131,7 @@ nav button{border:0;background:none;color:#ddd;font-size:12px;cursor:pointer}nav
 <div class="note" style="text-align:left;margin-top:5px">Type a name or tap a suggestion. Spaces become underscores and @ is added automatically.</div>
 <label for="profileBio">Bio / About</label><textarea id="profileBio" maxlength="160" placeholder="Tell people about yourself"></textarea>
 <button class="action" onclick="saveProfile()">Save Profile</button>
+<button class="action" style="background:#493657;margin-left:8px" onclick="logoutRymora()">🚪 Logout / Switch Account</button>
 <p id="profileResult" class="note"></p>
 <p class="note">Name, username and bio are saved to Firestore after OTP login. Profile photo remains on this device only. Demo mode saves locally.</p>
 </div></div>
@@ -436,6 +437,25 @@ function openProfile(){
  if(profile.username)hideUsernameSuggestions();
 }
 function closeProfile(){document.getElementById("profilePage").style.display="none";}
+async function logoutRymora(){
+ if(!rymoraAuth || !rymoraAuth.currentUser){alert("No Firebase account is signed in.");return;}
+ if(!confirm("Sign out of this Rymora account? Your cloud profile will remain saved."))return;
+ try{
+  await rymoraAuth.signOut();
+  cloudProfileLoaded=false;profileLoading=false;
+  profile={name:"Rymora User",username:"",bio:"",photo:""};
+  try{localStorage.removeItem(profileKey);}catch(_){}
+  document.getElementById("profilePage").style.display="none";
+  document.getElementById("contactsPage").style.display="none";
+  document.getElementById("chatPage").style.display="none";
+  document.getElementById("otpSection").style.display="none";
+  document.getElementById("phoneSection").style.display="block";
+  document.getElementById("otpCode").value="";
+  document.getElementById("phoneNumber").value="";
+  document.getElementById("authGate").style.display="block";
+  authMessage("Signed out. Enter another test number to switch accounts.");
+ }catch(e){alert("Logout failed: "+e.message);}
+}
 let cropImage=null,cropX=0,cropY=0,cropBase=1,cropPointer=null;
 function choosePhoto(event){
  const file=event.target.files[0];event.target.value="";
