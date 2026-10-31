@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rymora V1.8.6 Accepted Contacts Fix</title>
+<style>
+:root{color-scheme:dark;font-family:Arial,sans-serif}*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top right,#392050,#100b1d 65%);color:#fff}
+header{padding:18px;background:#211632;border-bottom:1px solid #52356c;display:flex;align-items:center;gap:12px}
+header strong{font-size:23px}.muted,small{color:#c4b2d6}
+main{max-width:720px;margin:auto;padding:15px 15px 70px}
+.card{background:#251934;border:1px solid #49315f;border-radius:18px;padding:17px;margin:12px 0}
+h2{margin:4px 0 16px;font-size:19px}label{display:block;margin:12px 0 5px}
+input,textarea,select{width:100%;background:#382947;color:white;border:1px solid #705184;border-radius:11px;padding:12px;font:inherit}
+textarea{min-height:70px}button{border:0;border-radius:11px;padding:11px 14px;background:#8739e8;color:white;font-weight:bold;cursor:pointer;margin:5px 4px 5px 0}
+button.secondary{background:#51415f}button:disabled{opacity:.55}
+.row{border-bottom:1px solid #4a345a;padding:12px 0;overflow-wrap:anywhere}.hidden{display:none!important}
+.notice{white-space:pre-wrap;color:#e7c4ff;font-size:13px;overflow-wrap:anywhere}
+.brand{display:inline-grid;place-items:center;background:linear-gradient(135deg,#6330e5,#dc40f5);width:43px;height:43px;border-radius:12px;font-size:27px;font-weight:bold}
+</style></head><body>
+<header><span class="brand">R</span><div><strong>Rymora</strong><div class="muted">Accepted Contacts Fix · V1.8.6 Test</div></div></header>
+<main>
+<section id="login" class="card"><h2>Phone Sign In</h2><p class="muted">Use a Firebase test phone number configured in your Firebase project. Never share OTPs in chat.</p>
+<label>Country code</label><select id="country"><option value="+880">Bangladesh +880</option><option value="+1">USA/Canada +1</option><option value="+91">India +91</option><option value="+44">UK</option></select>
+<label>Phone number</label><input id="phone" type="tel" placeholder="6505553434"><div id="recaptcha"></div><button id="sendOtp">Send OTP</button>
+<div id="otpArea" class="hidden"><label>6-digit OTP</label><input id="otp" inputmode="numeric" maxlength="6"><button id="verifyOtp">Verify OTP</button></div><p id="loginNotice" class="notice"></p></section>
+<section id="app" class="hidden">
+<div class="card"><strong id="who">Loading profile…</strong><div class="muted" id="handle"></div><button class="secondary" id="logout">Logout / Switch Account</button><p class="notice" id="status"></p></div>
+<section class="card"><h2>My Profile</h2><label>Name</label><input id="name" maxlength="50"><label>Username</label><input id="username" maxlength="24"><label>Bio</label><textarea id="bio" maxlength="160"></textarea><button id="saveProfile">Save Profile & Register Username</button></section>
+<section class="card"><h2>Find Contacts</h2><label>Exact username</label><input id="lookup" placeholder="raju_chowdhury"><button id="search">Search</button><div id="searchResult" class="notice"></div><h2>Incoming Requests</h2><div id="incoming"></div><h2>Sent Requests</h2><div id="outgoing"></div><h2>Accepted Contacts</h2><div id="accepted"></div></section>
+<section class="card"><h2>Request Diagnostics Log</h2><p class="muted">This test checks the signed-in user's profile and both username directory records before sending. It does not change Firestore Rules.</p><div id="diagnostics" class="notice">No diagnostics run yet.</div></section>
+</section></main>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+'use strict';
+const firebaseConfig={apiKey:'AIzaSyBhJSni0r9SEyDaPmLKF_MZmlMMvBkm56w',authDomain:'rymora.firebaseapp.com',projectId:'rymora',storageBucket:'rymora.firebasestorage.app',messagingSenderId:'1097264616928',appId:'1:1097264616928:web:35fce6bec344f5e2fc8785'};
+const $=id=>document.getElementById(id), say=(id,t)=>$(id).textContent=t, show=(id,yes)=>$(id).classList.toggle('hidden',!yes);
+const clean=s=>String(s||'').trim().toLowerCase().replace(/^@/,'').replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').slice(0,24);
+let auth,db,confirmOtp,recaptcha,me=null,myProfile=null,requests=[],unsubs=[];
+function setDiag(lines){say('diagnostics',lines.join('\n'))}
+function errText(e){return (e?.code?e.code+': ':'')+(e?.message||String(e))}
+function stop(){unsubs.forEach(f=>f());unsubs=[];requests=[]}
+function error(e){say('status','Error: '+errText(e));console.error(e)}
+function row(target,title,detail,buttons=[]){const el=document.createElement('div');el.className='row';const b=document.createElement('strong');b.textContent=title;const sm=document.createElement('div');sm.className='muted';sm.textContent=detail;el.append(b,sm);for(const [caption,fn] of buttons){const btn=document.createElement('button');btn.textContent=caption;btn.onclick=fn;el.append(btn)}$(target).append(el)}
+function updateWho(){say('who',myProfile?.name||'Complete your profile');say('handle',myProfile?.username?'@'+myProfile.username:'Username not registered yet')}
+async function signedIn(user){stop();me=user;show('login',false);show('app',true);say('status','Loading profile…');try{const doc=await db.collection('users').doc(user.uid).get();if(auth.currentUser?.uid!==user.uid)return;const d=doc.data()||{};myProfile={name:d.name||'',username:clean(d.username||''),bio:d.bio||''};$('name').value=myProfile.name;$('username').value=myProfile.username;$('bio').value=myProfile.bio;updateWho();say('status',myProfile.username?'Profile loaded. Tap Save Profile to register/verify username directory.':'Complete your profile and tap Save Profile.');listenRequests(user.uid)}catch(e){error(e)}}
+function listenRequests(uid){let inbound=new Map(),outbound=new Map();const sync=()=>{if(auth.currentUser?.uid!==uid)return;requests=[...new Map([...inbound,...outbound]).values()];renderRequests()};unsubs.push(db.collection('requests').where('toUid','==',uid).onSnapshot(s=>{inbound=new Map(s.docs.map(d=>[d.id,{id:d.id,...d.data()}]));sync()},e=>{say('status','Incoming requests listener: '+errText(e));console.error(e)}));unsubs.push(db.collection('requests').where('fromUid','==',uid).onSnapshot(s=>{outbound=new Map(s.docs.map(d=>[d.id,{id:d.id,...d.data()}]));sync()},e=>{say('status','Sent requests listener: '+errText(e));console.error(e)}))}
+function renderRequests(){
+ for(const id of ['incoming','outgoing','accepted'])$(id).replaceChildren();
+ const incoming=requests.filter(r=>r.toUid===me?.uid&&r.status==='pending');
+ const outgoing=requests.filter(r=>r.fromUid===me?.uid&&r.status==='pending');
+ const accepted=requests.filter(r=>r.status==='accepted'&&(r.fromUid===me?.uid||r.toUid===me?.uid));
+ if(!incoming.length)say('incoming','No incoming requests.');
+ if(!outgoing.length)say('outgoing','No pending sent requests.');
+ if(!accepted.length)say('accepted','No accepted contacts.');
+ incoming.forEach(r=>row('incoming','@'+r.fromUsername,'Message: '+(r.message1||''),[['Accept',()=>respond(r,'accepted')],['Reject',()=>respond(r,'rejected')]]));
+ outgoing.forEach(r=>row('outgoing','@'+r.toUsername,'Sent '+(r.messageCount||0)+' message(s): '+(r.message1||'')));
+ accepted.forEach(r=>{
+  const username=r.fromUid===me.uid?r.toUsername:r.fromUsername;
+  row('accepted','@'+username,'Request accepted');
+ });
+}
+async function saveProfile(){if(!me)return;const name=$('name').value.trim(),username=clean($('username').value),bio=$('bio').value.trim();if(!name||name.length>50||!/^[a-z0-9_]{3,24}$/.test(username)){say('status','Enter a name and valid username (3–24 characters).');return}const btn=$('saveProfile');btn.disabled=true;say('status','Saving profile and reserving username…');try{const userRef=db.collection('users').doc(me.uid),newRef=db.collection('usernames').doc(username);await db.runTransaction(async tx=>{const old=await tx.get(userRef),reservation=await tx.get(newRef);if(reservation.exists&&reservation.data().uid!==me.uid)throw Error('Username already taken.');const previous=clean(old.data()?.username||'');const oldRef=previous&&previous!==username?db.collection('usernames').doc(previous):null;const oldReservation=oldRef?await tx.get(oldRef):null;tx.set(userRef,{name,username,bio,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});tx.set(newRef,{uid:me.uid,name,username});if(oldRef&&oldReservation?.exists&&oldReservation.data().uid===me.uid)tx.delete(oldRef)});myProfile={name,username,bio};updateWho();say('status','Saved! Username @'+username+' registered successfully.')}catch(e){error(e)}finally{btn.disabled=false}}
+async function searchUser(){if(!me)return;const name=clean($('lookup').value);if(!/^[a-z0-9_]{3,24}$/.test(name)){say('searchResult','Enter an exact username.');return}say('searchResult','Searching…');try{const doc=await db.collection('usernames').doc(name).get();if(!doc.exists){say('searchResult','Username not registered. Ask that account to sign in and tap Save Profile.');return}const d=doc.data();if(d.uid===me.uid){say('searchResult','That is your account.');return}const existing=requests.find(r=>(r.fromUid===me.uid&&r.toUid===d.uid)||(r.toUid===me.uid&&r.fromUid===d.uid));if(existing){say('searchResult','Existing request: '+existing.status);return}const box=$('searchResult');box.replaceChildren();const input=document.createElement('textarea');input.maxLength=500;input.placeholder='Write your first message (max 500 characters)';const b=document.createElement('button');b.textContent='Run diagnostics & send request to @'+name;b.onclick=()=>sendRequest(d.uid,name,input.value);box.append(input,b)}catch(e){say('searchResult','Search failed: '+errText(e))}}
+async function sendRequest(other,name,text){
+ if(!myProfile?.username){say('searchResult','Save your profile first.');return}
+ text=String(text||'').trim();if(!text||text.length>500){say('searchResult','Write a message of 1–500 characters.');return}
+ const lines=[];const fromName=myProfile.username;let ownProfile=null,fromDir=null,toDir=null;
+ try{
+  lines.push('Signed-in UID: '+me.uid);
+  lines.push('Request ID will be: '+me.uid+'_'+other);
+  const ownSnap=await db.collection('users').doc(me.uid).get();ownProfile=ownSnap.exists?ownSnap.data():null;
+  lines.push('Own users/'+me.uid+': '+(ownProfile?'FOUND':'MISSING'));
+  lines.push('Own profile username: '+(ownProfile?.username||'(missing)'));
+  const fromSnap=await db.collection('usernames').doc(fromName).get();fromDir=fromSnap.exists?fromSnap.data():null;
+  lines.push('usernames/'+fromName+': '+(fromDir?'FOUND':'MISSING'));
+  lines.push('Sender directory UID matches signed-in UID: '+(fromDir?.uid===me.uid?'YES':'NO'));
+  const toSnap=await db.collection('usernames').doc(name).get();toDir=toSnap.exists?toSnap.data():null;
+  lines.push('usernames/'+name+': '+(toDir?'FOUND':'MISSING'));
+  lines.push('Recipient directory UID matches search result UID: '+(toDir?.uid===other?'YES':'NO'));
+  lines.push('Recipient UID equals sender UID: '+(other===me.uid?'YES (INVALID)':'NO'));
+  const mismatches=[];
+  if(!ownProfile) mismatches.push('own users document missing');
+  if(ownProfile?.username!==fromName) mismatches.push('own profile username does not match app profile');
+  if(!fromDir) mismatches.push('sender username directory missing');
+  if(fromDir?.uid!==me.uid) mismatches.push('sender directory UID mismatch');
+  if(!toDir) mismatches.push('recipient username directory missing');
+  if(toDir?.uid!==other) mismatches.push('recipient directory UID mismatch');
+  if(other===me.uid) mismatches.push('cannot send request to self');
+  lines.push('Preflight result: '+(mismatches.length?'CHECK FAILED — '+mismatches.join('; '):'PASS'));
+  setDiag(lines);
+  if(mismatches.length){say('searchResult','Diagnostics found a mismatch. Open Request Diagnostics Log below and share the result (hide UIDs if you prefer).');return}
+  const rid=me.uid+'_'+other;
+  await db.collection('requests').doc(rid).set({fromUid:me.uid,toUid:other,fromUsername:fromName,toUsername:name,status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp(),message1:text,messageCount:1});
+  lines.push('WRITE RESULT: SUCCESS');setDiag(lines);say('searchResult','First message request sent to @'+name+'.');say('status','Friend Request created successfully.')
+ }catch(e){lines.push('WRITE RESULT: FAILED');lines.push('Firebase error: '+errText(e));lines.push('Interpretation: Firestore Rules denied the write or a preflight read was denied. This log does not change your Rules.');setDiag(lines);say('searchResult','Request failed: '+errText(e));console.error('Rymora request diagnostics',e,lines)}
+}
+async function respond(r,status){try{await db.collection('requests').doc(r.id).update({status});say('status','Request '+status+'.')}catch(e){error(e)}}
+$('saveProfile').onclick=saveProfile;$('search').onclick=searchUser;$('logout').onclick=()=>auth.signOut();
+$('sendOtp').onclick=async()=>{const btn=$('sendOtp');btn.disabled=true;try{let number=$('phone').value.replace(/[\s()-]/g,'');if(!number.startsWith('+'))number=$('country').value+number.replace(/^0+/,'');if(!/^\+\d{8,15}$/.test(number))throw Error('Enter a valid phone number.');if(!recaptcha){recaptcha=new firebase.auth.RecaptchaVerifier('recaptcha',{size:'normal'});await recaptcha.render()}confirmOtp=await auth.signInWithPhoneNumber(number,recaptcha);show('otpArea',true);say('loginNotice','OTP requested. Test numbers do not receive SMS.')}catch(e){say('loginNotice',errText(e));if(recaptcha){try{recaptcha.clear()}catch(_){}recaptcha=null;$('recaptcha').replaceChildren()}}finally{btn.disabled=false}};
+$('verifyOtp').onclick=async()=>{try{if(!confirmOtp)throw Error('Send OTP first.');await confirmOtp.confirm($('otp').value.trim())}catch(e){say('loginNotice',errText(e))}};
+try{firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.firestore();auth.onAuthStateChanged(u=>{if(u)signedIn(u);else{stop();me=null;myProfile=null;show('app',false);show('login',true)}})}catch(e){say('loginNotice',errText(e))}
+</script></body></html>
