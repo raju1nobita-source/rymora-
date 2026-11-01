@@ -120,7 +120,7 @@ button:disabled{opacity:.55}
 
 <script>
 'use strict';
-const firebaseConfig={apiKey:'AIzaSyBhJSni0r9SEyDaPmLKF_MZmlMMBvkm56w',authDomain:'rymora.firebaseapp.com',projectId:'rymora',storageBucket:'rymora.firebasestorage.app',messagingSenderId:'1097264616928',appId:'1:1097264616928:web:35fce6bec344f5e2fc8785'};
+const firebaseConfig={apiKey:'AIzaSyBhJSni0r9SEyDaPmLKF_MZmlMMvBkm56w',authDomain:'rymora.firebaseapp.com',projectId:'rymora',storageBucket:'rymora.firebasestorage.app',messagingSenderId:'1097264616928',appId:'1:1097264616928:web:35fce6bec344f5e2fc8785'};
 const $=id=>document.getElementById(id), say=(id,t)=>$(id).textContent=t, show=(id,yes)=>$(id).classList.toggle('hidden',!yes);
 const clean=s=>String(s||'').trim().toLowerCase().replace(/^@/,'').replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').slice(0,24);
 let auth,db,confirmOtp,recaptcha,me=null,myProfile=null,requests=[],unsubs=[],chatUnsub=null,activeChat=null,chatOpening=false;
