@@ -173,13 +173,27 @@ title="Tap to add or change profile photo">
 <input id="photoInput" type="file" accept="image/*" class="hidden" onchange="previewProfilePhoto(event)">
 
 <div id="photoEditor" class="hidden">
-<p class="small">Photo preview (center crop)</p>
-<canvas id="photoCanvas" class="photo-canvas"></canvas>
-<div class="item-actions">
-<button onclick="uploadProfilePhoto()">Save Photo</button>
-<button class="secondary" onclick="cancelPhoto()">Cancel</button>
-<button class="danger" onclick="removeProfilePhoto()">Remove Photo</button>
-</div>
+  <p class="small">Drag photo to adjust position</p>
+
+  <canvas id="photoCanvas"
+          class="photo-canvas"
+          width="512"
+          height="512"></canvas>
+
+  <label>Zoom Photo</label>
+  <input id="photoZoom"
+         type="range"
+         min="1"
+         max="3"
+         step="0.05"
+         value="1"
+         oninput="setPhotoZoom(this.value)">
+
+  <div class="item-actions">
+    <button onclick="uploadProfilePhoto()">Save Photo</button>
+    <button class="secondary" onclick="cancelPhoto()">Cancel</button>
+    <button class="danger" onclick="removeProfilePhoto()">Remove Photo</button>
+  </div>
 </div>
 
 <input id="profileName" placeholder="Your name" maxlength="50">
