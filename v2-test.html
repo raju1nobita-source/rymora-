@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#160d2b">
+<title>Rymora V2.0</title>
+
+<style>
+:root{
+--bg:#10091e;--panel:#1b1230;--panel2:#261a3e;
+--purple:#8b5cf6;--purple2:#6d3be8;--text:#f5f0ff;
+--muted:#aa9cbe;--border:#392951;--green:#45c58a;--red:#e65b70
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+button,input,textarea{font:inherit}
+button{border:0;border-radius:10px;padding:12px 15px;background:var(--purple);color:white;font-weight:700;cursor:pointer}
+button:hover{background:var(--purple2)}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,textarea{width:100%;padding:12px;margin:7px 0;border:1px solid var(--border);border-radius:10px;background:#120b20;color:white;outline:none}
+input:focus,textarea:focus{border-color:var(--purple)}
+textarea{resize:vertical;min-height:75px}
+.hidden{display:none!important}
+.muted{color:var(--muted);font-size:13px}
+.small{font-size:12px;color:var(--muted)}
+.center{text-align:center}
+.logo{width:55px;height:55px;display:grid;place-items:center;margin:0 auto 12px;border-radius:17px;background:linear-gradient(135deg,#a78bfa,#6d28d9);font-size:29px;font-weight:900}
+.brand{font-size:27px;font-weight:800}
+.tagline{font-size:13px;color:var(--muted);margin-top:5px}
+.auth-wrap{min-height:100vh;display:grid;place-items:center;padding:18px}
+.auth-card{width:100%;max-width:430px;background:var(--panel);padding:24px;border:1px solid var(--border);border-radius:20px}
+.auth-card h2{margin-bottom:5px}
+.auth-card button.primary{width:100%;margin-top:9px}
+.link-btn{background:transparent;color:#c4a8ff;padding:8px}
+.link-btn:hover{background:transparent;color:white}
+.password-wrap{position:relative}
+.password-wrap input{padding-right:52px}
+.eye-btn{position:absolute;right:5px;top:10px;width:40px;height:39px;padding:8px;background:transparent;color:#cbb8ff}
+.eye-btn:hover{background:#302044}
+.message{display:none;padding:10px;margin:10px 0;border-radius:9px;font-size:13px}
+.message.error{display:block;background:#4a1e2b;color:#ffb8c2}
+.message.ok{display:block;background:#123b2c;color:#a8f0ce}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:12px 17px;background:#180f29;border-bottom:1px solid var(--border)}
+.header-brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800}
+.mini-logo{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,#a78bfa,#6d28d9);font-weight:900}
+.app-layout{max-width:1100px;margin:auto;padding:16px;display:grid;grid-template-columns:1fr 1HTap:14px}
+.panel{min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:16px}
+.panel h3{margin:0 0 12px;font-size:17px}
+.full{grid-column:1/-1}
+.row{display:flex;align-items:center;gap:8px}
+.row input{flex:1;min-width:0}
+.item{background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:12px;margin:8px 0;overflow-wrap:anywhere}
+.item-title{font-weight:700}
+.item-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.item-actions button{padding:8px 11px;font-size:12px}
+.secondary{background:#382653}
+.danger{background:#8f2939}
+.success{background:#236c50}
+.status{display:inline-block;font-size:11px;color:#d5c5ff;background:#35234f;border-radius:20px;padding:4px 8px;margin-top:5px}
+.profile-avatar{width:100px;height:100px;border-radius:50%;background:#56369a;display:grid;place-items:center;font-size:28px;font-weight:800;margin:10px auto;overflow:hidden;cursor:pointer;border:2px solid #8b5cf6}
+.profile-avatar img{width:100%;height:100%;object-fit:cover}
+.welcome{background:linear-gradient(120deg,#35205a,#211337);border:1px solid #533b77;border-radius:15px;padding:18px;margin-bottom:14px}
+.welcome h2{margin:0 0 7px}
+.chat-box{height:300px;overflow-y:auto;background:#10091c;border:1px solid var(--border);border-radius:12px;padding:10px;margin:10px 0}
+.chat-message{max-width:85%;width:fit-content;padding:10px 12px;border-radius:12px;background:#2b2040;margin:8px 0;overflow-wrap:anywhere}
+.chat-message.mine{margin-left:auto;background:#5734a0}
+.chat-meta{font-size:10px;color:#d4c5ef;margin-top:5px}
+.reply-preview{
+background:#211632;border-left:3px solid #a78bfa;border-radius:7px;
+padding:7px 9px;margin-bottom:8px;font-size:12px;cursor:pointer;color:#e8ddff;
+}
+.reply-preview small{display:block;color:#bba9d8;margin-bottom:3px}
+.reply-compose{
+display:flex;align-items:center;justify-content:space-between;gap:8px;
+background:#211632;border:1px solid #7653a8;border-radius:9px;
+padding:8px 10px;margin:8px 0;font-size:12px;
+}
+.reply-compose button{padding:5px 9px}
+.chat-message.highlight{outline:2px solid #facc15;transition:outline .2s}
+.reply-action{display:block;margin-top:6px;padding:4px 8px;font-size:11px;background:#382653}
+.chat-compose{display:flex;gap:8px}
+.chat-compose input{margin:0}
+#usernameSuggestions button{margin:4px;padding:8px 11px;font-size:12px}
+.photo-canvas{width:180px;height:180px;max-width:100%;border-radius:50%;background:#120b20}
+@media(max-width:720px){
+.app-layout{grid-template-columns:1fr;padding:11px}
+.full{grid-column:auto}
+.row{flex-wrap:wrap}
+.row input{flex-basis:100%}
+}
+</style>
+</head>
+
+<body>
+
+<section id="authScreen" class="auth-wrap">
+<div class="auth-card">
+<div class="center">
+<div class="logo">R</div>
+<div class="brand">Rymora</div>
+<div class="tagline">Connect Beyond Limits</div>
+</div>
+
+<div id="authMessage" class="message"></div>
+
+<div id="loginBox">
+<h2>Welcome Back</h2>
+<p class="muted">Login to your Rymora account.</p>
+<input id="loginEmail" type="email" placeholder="Email address" autocomplete="email">
+<div class="password-wrap">
+<input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password">
+<button class="eye-btn" type="button" onclick="togglePassword('loginPassword',this)">◉</button>
+</div>
+<button class="primary" id="loginBtn" onclick="login()">Login</button>
+<button class="link-btn" onclick="showForgot()">Forgot Password?</button>
+<p class="center muted">Don't have an account?
+<button class="link-btn" onclick="showSignup()">Create Account</button></p>
+</div>
+
+<div id="signupBox" class="hidden">
+<h2>Create Account</h2>
+<p class="muted">Join Rymora with your email address.</p>
+<input id="signupName" placeholder="Your full name" maxlength="50">
+<input id="signupEmail" type="email" placeholder="Email address">
+<div class="password-wrap">
+<input id="signupPassword" type="password" placeholder="Create password (minimum 6 characters)">
+<button class="eye-btn" type="button" onclick="togglePassword('signupPassword',this)">◉</button>
+</div>
+<input id="signupPhone" type="tel" placeholder="Phone number (optional)">
+<p class="small">Phone number is optional and remains Unverified until verification is implemented.</p>
+<button class="primary" id="signupBtn" onclick="signup()">Create Account</button>
+<p class="center muted">Already have an account?
+<button class="link-btn" onclick="showLogin()">Login</button></p>
+</div>
+
+<div id="forgotBox" class="hidden">
+<h2>Reset Password</h2>
+<input id="resetEmail" type="email" placeholder="Email address">
+<button class="primary" onclick="resetPassword()">Send Reset Link</button>
+<button class="link-btn" onclick="showLogin()">Back to Login</button>
+</div>
+</div>
+</section>
+
+<section id="appScreen" class="hidden">
+<header>
+<div class="header-brand"><div class="mini-logo">R</div><span>Rymora</span></div>
+<button class="danger" onclick="logout()">Logout</button>
+</header>
+
+<main class="app-layout">
+
+<section class="panel full">
+<div class="welcome">
+<h2>Welcome to Rymora</h2>
+<div id="welcomeName">Connect Beyond Limits</div>
+<p class="small">Your world. Your connections. Your Rymora.</p>
+</div>
+</section>
+
+<section class="panel">
+<h3>My Profile</h3>
+
+<div class="profile-avatar" id="avatarLetter"
+onclick="document.getElementById('photoInput').click()"
+title="Tap to add or change profile photo">
+<span id="avatarInitial">R</span>
+<img id="profilePhotoPreview" class="hidden" alt="Profile photo">
+</div>
+
+<p class="small center">Tap your profile icon to add or change photo</p>
+<input id="photoInput" type="file" accept="image/*" class="hidden" onchange="previewProfilePhoto(event)">
+
+<div id="photoEditor" class="hidden">
+<p class="small">Photo preview (center crop)</p>
+<canvas id="photoCanvas" class="photo-canvas"></canvas>
+<div class="item-actions">
+<button onclick="uploadProfilePhoto()">Save Photo</button>
+<button class="secondary" onclick="cancelPhoto()">Cancel</button>
+<button class="danger" onclick="removeProfilePhoto()">Remove Photo</button>
+</div>
+</div>
+
+<input id="profileName" placeholder="Your name" maxlength="50">
+<input id="profileUsername" placeholder="Username (e.g. raju_786)" maxlength="20">
+
+<div class="row">
+<button class="secondary" onclick="generateUsernameSuggestions()">Suggest Username</button>
+</div>
+<div id="usernameSuggestions" class="item small">
+Tap Suggest Username to see available names.
+</div>
+
+<textarea id="profileBio" placeholder="Write something about yourself..." maxlength="160"></textarea>
+<input id="profilePhone" type="tel" placeholder="Phone number (optional)">
+<p class="small" id="phoneStatus">Phone verification: Not provided</p>
+<button onclick="saveProfile()">Save Profile</button>
+<div id="profileMessage" class="message"></div>
+</section>
+
+<section class="panel">
+<h3>Find People</h3>
+<p class="muted">Search using an exact Rymora username.</p>
+<div class="row">
+<input id="searchUsername" placeholder="Enter username">
+<button onclick="searchUser()">Search</button>
+</div>
+<div id="searchResult"></div>
+<hr style="border-color:var(--border);margin:18px 0">
+<h3>Phone Contact Sync</h3>
+<p class="small">Phone matching is not enabled yet. Use username search for now.</p>
+<button class="secondary" disabled>Contact Sync — Coming Later</button>
+</section>
+
+<section class="panel">
+<h3>Message Requests</h3>
+<p class="small">An unknown user can send up to two messages while pending. Accepting enables text chat only.</p>
+<div id="incomingMessageRequests" class="muted">No incoming message requests.</div>
+</section>
+
+<section class="panel">
+<h3>Sent Message Requests</h3>
+<div id="outgoingMessageRequests" class="muted">No sent message requests.</div>
+</section>
+
+<section class="panel">
+<h3>Add Contact Requests</h3>
+<p class="small">Accept separately to enable contact-level features such as voice notes and calls when added.</p>
+<div id="incomingContactRequests" class="muted">No incoming contact requests.</div>
+</section>
+
+<section class="panel">
+<h3>Sent Contact Requests</h3>
+<div id="outgoingContactRequests" class="muted">No sent contact requests.</div>
+</section>
+
+<section class="panel full">
+<h3>My Contacts</h3>
+<div id="contactsList" class="muted">No accepted contacts yet.</div>
+</section>
+
+<section class="panel full">
+<h3 id="chatTitle">Messages</h3>
+<p id="chatNotice" class="muted">Choose a conversation to start chatting.</p>
+<div id="chatBox" class="chat-box"><p class="muted center">Your messages will appear here.</p></div>
+<div id="replyPreview" class="reply-compose hidden"><div id="replyPreviewText"></div><button class="danger" onclick="cancelReply()">Cancel</button></div>
+<div class="chat-compose">
+<input id="chatInput" placeholder="Write a message..." maxlength="2000" disabled>
+<button id="sendChatBtn" onclick="sendChatMessage()" disabled>Send</button>
+</div>
+</section>
+
+<section class="panel full">
+<h3>Diagnostics</h3>
+<div id="diagnostics" class="small">Checking...</div>
+<button class="secondary" onclick="runDiagnostics()">Run Diagnostics</button>
+</section>
+
+</main>
+</section>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+
+<script>
+const firebaseConfig={
+apiKey:"AIzaSyBhJSni0r9SEyDaPmLKF_MZmlMMvBkm56w",
+authDomain:"rymora.firebaseapp.com",
+projectId:"rymora",
+storageBucket:"rymora.firebasestorage.app",
+messagingSenderId:"1097264616928",
+appId:"1:1097264616928:web:35fce6bec344f5e2fc8785"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth=firebase.auth();
+const db=firebase.firestore();
+const storage=firebase.storage();
+
+let currentUser=null;
+let currentProfile=null;
+let activeChatUid=null;
+let activeChatId=null;
+let activeChatType=null;
+let replyTarget=null;
+let activeChatMessages=[];
+let requestUnsubscribers=[];
+let messageUnsubscribe=null;
+
+let selectedPhotoBlob=null;
+let shownUsernameSuggestions=[];
+let selectedUsernameSuggestions=[];
+
+const $=id=>document.getElementById(id);
+
+function safeText(value){
+return String(value||"").replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+})[c]);
+}
+
+function showMessage(id,text,type="ok"){
+const el=$(id);
+el.textContent=text;
+el.className="message "+type;
+setTimeout(()=>el.className="message",6000);
+}
+
+function cleanUsername(value){
+return String(value||"").trim().toLowerCase().replace(/^@/,"");
+}
+
+function validUsername(value){
+return /^[a-z0-9_]{3,20}$/.test(value);
+}
+
+function pairId(uid1,uid2){
+return [uid1,uid2].sort().join("_");
+}
+
+function showLogin(){
+$("loginBox").classList.remove("hidden");
+$("signupBox").classList.add("hidden");
+$("forgotBox").classList.add("hidden");
+$("authMessage").className="message";
+}
+
+function showSignup(){
+$("loginBox").classList.add("hidden");
+$("signupBox").classList.remove("hidden");
+$("forgotBox").classList.add("hidden");
+$("authMessage").className="message";
+}
+
+function showForgot(){
+$("loginBox").classList.add("hidden");
+$("signupBox").classList.add("hidden");
+$("forgotBox").classList.remove("hidden");
+$("resetEmail").value=$("loginEmail").value.trim();
+$("authMessage").className="message";
+}
+
+function togglePassword(inputId,button){
+const input=$(inputId);
+const showing=input.type==="password";
+input.type=showing?"text":"password";
+button.textContent=showing?"◉":"◎";
+button.setAttribute("aria-label",showing?"Hide password":"Show password");
+}
+
+function authError(error){
+const messages={
+"auth/email-already-in-use":"This email is already registered. Please login.",
+"auth/invalid-email":"Invalid email address.",
+"auth/weak-password":"Password must contain at least 6 characters.",
+"auth/user-not-found":"No account found with this email.",
+"auth/wrong-password":"Incorrect email or password.",
+"auth/invalid-credential":"Incorrect email or password.",
+"auth/too-many-requests":"Too many attempts. Try again later.",
+"auth/network-request-failed":"Network error. Check your internet connection."
+};
+return messages[error.code]||error.message||"Something went wrong.";
+}
+
+// AUTHENTICATION
+
+async function signup(){
+const name=$("signupName").value.trim();
+const email=$("signupEmail").value.trim().toLowerCase();
+const password=$("signupPassword").value;
+const phone=$("signupPhone").value.trim();
+
+if(!name||!email||!password){
+showMessage("authMessage","Enter your name, email and password.","error");
+return;
+}
+if(password.length<6){
+showMessage("authMessage","Password must be at least 6 characters.","error");
+return;
+}
+
+$("signupBtn").disabled=true;
+try{
+const credential=await auth.createUserWithEmailAndPassword(email,password);
+const user=credential.user;
+await user.updateProfile({displayName:name});
+
+await db.collection("users").doc(user.uid).set({
+uid:user.uid,name,email,phone,
+phoneVerificationStatus:phone?"Unverified":"Not provided",
+username:"",bio:"",photoURL:"",
+createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+},{merge:true});
+}catch(error){
+showMessage("authMessage",authError(error),"error");
+}finally{
+$("signupBtn").disabled=false;
+}
+}
+
+async function login(){
+const email=$("loginEmail").value.trim().toLowerCase();
+const password=$("loginPassword").value;
+if(!email||!password){
+showMessage("authMessage","Enter your email and password.","error");
+return;
+}
+$("loginBtn").disabled=true;
+try{
+await auth.signInWithEmailAndPassword(email,password);
+}catch(error){
+showMessage("authMessage",authError(error),"error");
+}finally{
+$("loginBtn").disabled=false;
+}
+}
+
+async function resetPassword(){
+const email=$("resetEmail").value.trim().toLowerCase();
+if(!email){
+showMessage("authMessage","Enter your email address.","error");
+return;
+}
+try{
+await auth.sendPasswordResetEmail(email);
+showMessage("authMessage","Password reset email sent if the account exists.","ok");
+}catch(error){
+showMessage("authMessage",authError(error),"error");
+}
+}
+
+async function logout(){
+await auth.signOut();
+}
+
+auth.onAuthStateChanged(async user=>{
+stopListeners();
+currentUser=user||null;
+
+if(user){
+$("authScreen").classList.add("hidden");
+$("appScreen").classList.remove("hidden");
+await loadProfile();
+listenAllRequests();
+runDiagnostics();
+}else{
+currentProfile=null;
+activeChatUid=null;
+activeChatId=null;
+$("appScreen").classList.add("hidden");
+$("authScreen").classList.remove("hidden");
+showLogin();
+}
+});
+
+// PROFILE PHOTO
+
+function displayProfilePhoto(url){
+const img=$("profilePhotoPreview");
+const initial=$("avatarInitial");
+
+if(url){
+img.src=url;
+img.classList.remove("hidden");
+initial.classList.add("hidden");
+}else{
+img.removeAttribute("src");
+img.classList.add("hidden");
+initial.classList.remove("hidden");
+const name=$("profileName").value.trim()||"R";
+initial.textContent=name.charAt(0).toUpperCase();
+}
+}
+
+function previewProfilePhoto(event){
+const file=event.target.files&&event.target.files[0];
+if(!file)return;
+
+if(!file.type.startsWith("image/")){
+alert("Please select an image.");
+return;
+}
+if(file.size>10*1024*1024){
+alert("Image must be smaller than 10 MB.");
+return;
+}
+
+const reader=new FileReader();
+
+reader.onload=function(e){
+const image=new Image();
+
+image.onload=function(){
+const canvas=$("photoCanvas");
+const ctx=canvas.getContext("2d");
+const size=Math.min(image.width,image.height);
+const sx=(image.width-size)/2;
+const sy=(image.height-size)/2;
+
+canvas.width=512;
+canvas.height=512;
+
+ctx.clearRect(0,0,512,512);
+ctx.drawImage(image,sx,sy,size,size,0,0,512,512);
+
+canvas.toBlob(blob=>{
+if(!blob){
+alert("Could not process this image.");
+return;
+}
+selectedPhotoBlob=blob;
+$("photoEditor").classList.remove("hidden");
+},"image/jpeg",0.85);
+};
+
+image.onerror=()=>alert("Could not open this image.");
+image.src=e.target.result;
+};
+
+reader.readAsDataURL(file);
+}
+
+async function uploadProfilePhoto(){
+if(!currentUser||!selectedPhotoBlob){
+alert("Please select a photo first.");
+return;
+}
+
+try{
+const path="profilePhotos/"+currentUser.uid+"/profile.jpg";
+const ref=storage.ref().child(path);
+
+await ref.put(selectedPhotoBlob,{contentType:"image/jpeg"});
+const photoURL=await ref.getDownloadURL();
+
+await db.collection("users").doc(currentUser.uid).set({
+photoURL,
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+},{merge:true});
+
+currentProfile={...(currentProfile||{}),photoURL};
+displayProfilePhoto(photoURL);
+$("photoEditor").classList.add("hidden");
+$("photoInput").value="";
+selectedPhotoBlob=null;
+
+showMessage("profileMessage","Profile photo saved successfully.","ok");
+}catch(error){
+alert("Photo upload failed: "+error.message);
+}
+}
+
+function cancelPhoto(){
+selectedPhotoBlob=null;
+$("photoEditor").classList.add("hidden");
+$("photoInput").value="";
+}
+
+async function removeProfilePhoto(){
+if(!currentUser)return;
+if(!confirm("Remove your profile photo?"))return;
+
+try{
+const ref=storage.ref().child(
+"profilePhotos/"+currentUser.uid+"/profile.jpg"
+);
+
+try{
+await ref.delete();
+}catch(error){
+if(error.code!=="storage/object-not-found")throw error;
+}
+
+await db.collection("users").doc(currentUser.uid).set({
+photoURL:firebase.firestore.FieldValue.delete(),
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+},{merge:true});
+
+currentProfile={...(currentProfile||{})};
+delete currentProfile.photoURL;
+
+displayProfilePhoto("");
+cancelPhoto();
+showMessage("profileMessage","Profile photo removed.","ok");
+}catch(error){
+alert("Could not remove photo: "+error.message);
+}
+}
+
+// USERNAME SUGGESTIONS
+
+function makeUsernameCandidate(base,number){
+let clean=cleanUsername(base).replace(/[^a-z0-9_]/g,"");
+if(clean.length<3)clean="rymorauser";
+return clean.slice(0,13)+"_"+number;
+}
+
+async function generateUsernameSuggestions(){
+const box=$("usernameSuggestions");
+box.textContent="Finding available usernames...";
+
+if(!currentUser)return;
+
+const name=$("profileName").value.trim()||
+currentUser.displayName||"Rymora User";
+
+const base=name.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,12)||"rymorauser";
+const found=[];
+const tried=new Set();
+
+try{
+let attempts=0;
+
+while(found.length<2&&attempts<40){
+attempts++;
+const number=Math.floor(100+Math.random()*9900);
+const candidate=makeUsernameCandidate(base,number);
+
+if(tried.has(candidate)||selectedUsernameSuggestions.includes(candidate))continue;
+tried.add(candidate);
+
+const snap=await db.collection("usernames").doc(candidate).get();
+
+if(!snap.exists||snap.data().uid===currentUser.uid){
+found.push(candidate);
+}
+}
+
+shownUsernameSuggestions=found;
+
+if(!found.length){
+box.textContent="No suggestions found. Try again.";
+return;
+}
+
+box.innerHTML="Available suggestions: "+found.map(username=>
+`<button class="secondary" onclick="chooseUsernameSuggestion('${username}')">@${safeText(username)}</button>`
+).join("");
+
+}catch(error){
+box.textContent="Could not generate suggestions: "+error.message;
+}
+}
+
+function chooseUsernameSuggestion(username){
+if(!shownUsernameSuggestions.includes(username))return;
+
+$("profileUsername").value=username;
+selectedUsernameSuggestions.push(username);
+shownUsernameSuggestions=shownUsernameSuggestions.filter(x=>x!==username);
+
+const box=$("usernameSuggestions");
+box.innerHTML=shownUsernameSuggestions.length
+?"Other suggestions: "+shownUsernameSuggestions.map(x=>
+`<button class="secondary" onclick="chooseUsernameSuggestion('${x}')">@${safeText(x)}</button>`
+).join("")
+:"Suggestion selected. Tap Suggest Username for more.";
+}
+
+// LOAD PROFILE
+
+async function loadProfile(){
+if(!currentUser)return;
+
+try{
+const snap=await db.collection("users").doc(currentUser.uid).get();
+currentProfile=snap.exists?snap.data():{};
+
+const name=currentProfile.name||currentUser.displayName||"";
+$("profileName").value=name;
+$("profileUsername").value=currentProfile.username||"";
+$("profileBio").value=currentProfile.bio||"";
+$("profilePhone").value=currentProfile.phone||"";
+
+$("avatarInitial").textContent=(name||"R").charAt(0).toUpperCase();
+displayProfilePhoto(currentProfile.photoURL||"");
+
+$("welcomeName").textContent=name?"Hello, "+name+"!":"Connect Beyond Limits";
+$("phoneStatus").textContent="Phone verification: "+
+(currentProfile.phone?(currentProfile.phoneVerificationStatus||"Unverified"):"Not provided");
+
+}catch(error){
+showMessage("profileMessage",error.message,"error");
+}
+}
+
+// SAVE PROFILE
+
+async function saveProfile(){
+if(!currentUser)return;
+
+const name=$("profileName").value.trim();
+const username=cleanUsername($("profileUsername").value);
+const bio=$("profileBio").value.trim();
+const phone=$("profilePhone").value.trim();
+
+if(!name){
+showMessage("profileMessage","Please enter your name.","error");
+return;
+}
+if(!username||!validUsername(username)){
+showMessage("profileMessage","Username must be 3–20 lowercase letters, numbers or underscore.","error");
+return;
+}
+
+const userRef=db.collection("users").doc(currentUser.uid);
+
+try{
+await db.runTransaction(async tx=>{
+const userSnap=await tx.get(userRef);
+const oldUsername=cleanUsername(userSnap.exists?userSnap.data().username:"");
+const newUsernameRef=db.collection("usernames").doc(username);
+const newUsernameSnap=await tx.get(newUsernameRef);
+
+if(newUsernameSnap.exists&&newUsernameSnap.data().uid!==currentUser.uid){
+throw new Error("This username is already taken. Choose another one.");
+}
+
+if(oldUsername&&oldUsername!==username){
+const oldRef=db.collection("usernames").doc(oldUsername);
+const oldSnap=await tx.get(oldRef);
+
+if(oldSnap.exists&&oldSnap.data().uid===currentUser.uid){
+tx.delete(oldRef);
+}
+}
+
+tx.set(newUsernameRef,{
+uid:currentUser.uid,
+username,
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+});
+
+tx.set(userRef,{
+uid:currentUser.uid,
+name,
+email:currentUser.email||"",
+username,bio,phone,
+phoneVerificationStatus:phone?"Unverified":"Not provided",
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+},{merge:true});
+});
+
+await currentUser.updateProfile({displayName:name});
+await loadProfile();
+showMessage("profileMessage","Profile saved successfully.","ok");
+
+}catch(error){
+showMessage("profileMessage",error.message||"Could not save profile.","error");
+}
+}
+
+// USER SEARCH
+
+async function searchUser(){
+const username=cleanUsername($("searchUsername").value);
+const result=$("searchResult");
+result.innerHTML="";
+
+if(!validUsername(username)){
+result.textContent="Enter a valid username.";
+return;
+}
+if(username===cleanUsername(currentProfile&&currentProfile.username)){
+result.textContent="This is your own username.";
+return;
+}
+
+try{
+const usernameSnap=await db.collection("usernames").doc(username).get();
+
+if(!usernameSnap.exists){
+result.textContent="No user found with this username.";
+return;
+}
+
+const targetUid=usernameSnap.data().uid;
+if(!targetUid||targetUid===currentUser.uid)return;
+
+const userSnap=await db.collection("users").doc(targetUid).get();
+if(!userSnap.exists){
+result.textContent="User profile not found.";
+return;
+}
+
+const profile=userSnap.data();
+const messageId=currentUser.uid+"_"+targetUid;
+const contactId=currentUser.uid+"_"+targetUid;
+
+const [messageReq,contactReq]=await Promise.all([
+db.collection("messageRequests").doc(messageId).get(),
+db.collection("contactRequests").doc(contactId).get()
+]);
+
+let messageButton="";
+
+if(messageReq.exists&&messageReq.data().status==="accepted"){
+messageButton='<span class="status">Text chat accepted</span>';
+}else if(messageReq.exists&&messageReq.data().status==="pending"){
+messageButton='<span class="status">Message request sent</span>';
+}else{
+messageButton=`<button onclick="sendMessageRequest('${targetUid}')">Message Request</button>`;
+}
+
+let contactButton="";
+
+if(contactReq.exists&&contactReq.data().status==="accepted"){
+contactButton='<span class="status">Contact accepted</span>';
+}else if(contactReq.exists&&contactReq.data().status==="pending"){
+contactButton='<span class="status">Contact request sent</span>';
+}else{
+contactButton=`<button class="secondary" onclick="sendContactRequest('${targetUid}')">Add Contact</button>`;
+}
+
+const avatar=profile.photoURL
+?`<img src="${safeText(profile.photoURL)}" alt="Profile" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">`
+:`<div class="profile-avatar" style="width:48px;height:48px;font-size:18px;margin:0;">${safeText((profile.name||"R").charAt(0).toUpperCase())}</div>`;
+
+result.innerHTML=`
+<div class="item">
+<div class="row">${avatar}<div>
+<div class="item-title">${safeText(profile.name||"Rymora User")}</div>
+<div class="muted">@${safeText(profile.username||username)}</div>
+</div></div>
+<div class="muted">${safeText(profile.bio||"")}</div>
+<div class="item-actions">${messageButton}${contactButton}</div>
+</div>`;
+
+}catch(error){
+result.textContent="Search failed: "+error.message;
+}
+}
+
+// MESSAGE REQUEST
+
+async function sendMessageRequest(targetUid){
+if(!currentUser||!targetUid||targetUid===currentUser.uid)return;
+
+const requestId=currentUser.uid+"_"+targetUid;
+const ref=db.collection("messageRequests").doc(requestId);
+
+try{
+const [existing,senderSnap,receiverSnap]=await Promise.all([
+ref.get(),
+db.collection("users").doc(currentUser.uid).get(),
+db.collection("users").doc(targetUid).get()
+]);
+
+if(existing.exists&&existing.data().status==="accepted"){
+alert("This message request has already been accepted.");
+return;
+}
+if(existing.exists&&existing.data().status==="pending"){
+alert("You already have a pending message request.");
+return;
+}
+if(!senderSnap.exists||!receiverSnap.exists)throw new Error("User profile not found.");
+
+const firstMessage=prompt("Write your first message (maximum 500 characters):");
+if(firstMessage===null)return;
+
+const text=firstMessage.trim();
+if(!text||text.length>500){
+alert("Message must contain 1–500 characters.");
+return;
+}
+
+await db.runTransaction(async tx=>{
+const latest=await tx.get(ref);
+if(latest.exists&&latest.data().status==="pending"){
+throw new Error("A pending message request already exists.");
+}
+
+tx.set(ref,{
+fromUid:currentUser.uid,
+toUid:targetUid,
+fromName:senderSnap.data().name||"",
+fromUsername:senderSnap.data().username||"",
+toName:receiverSnap.data().name||"",
+toUsername:receiverSnap.data().username||"",
+status:"pending",
+messageCount:1,
+createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+});
+});
+
+await addMessageToChat(targetUid,text,"request");
+alert("Message request sent. You can send one more message while pending.");
+searchUser();
+
+}catch(error){
+alert(error.message||"Could not send message request.");
+}
+}
+async function sendPendingMessage(targetUid,text,replyTo=null){
+const ref=db.collection("messageRequests").doc(currentUser.uid+"_"+targetUid);
+
+await db.runTransaction(async tx=>{
+const snap=await tx.get(ref);
+if(!snap.exists)throw new Error("Message request not found.");
+
+const data=snap.data();
+if(data.status==="accepted")return;
+if(data.status!=="pending")throw new Error("This request is not active.");
+if(data.fromUid!==currentUser.uid)throw new Error("Only the request sender has the two-message limit.");
+if((data.messageCount||0)>=2)throw new Error("You have reached the two-message limit.");
+
+tx.update(ref,{
+messageCount:(data.messageCount||0)+1,
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+});
+});
+
+await addMessageToChat(targetUid,text,"request",replyTo);
+}
+
+// CONTACT REQUEST
+
+async function sendContactRequest(targetUid){
+if(!currentUser||!targetUid||targetUid===currentUser.uid)return;
+
+const ref=db.collection("contactRequests").doc(currentUser.uid+"_"+targetUid);
+
+try{
+const [existing,senderSnap,receiverSnap]=await Promise.all([
+ref.get(),
+db.collection("users").doc(currentUser.uid).get(),
+db.collection("users").doc(targetUid).get()
+]);
+
+if(existing.exists&&existing.data().status==="accepted"){
+alert("You are already accepted contacts.");
+return;
+}
+if(existing.exists&&existing.data().status==="pending"){
+alert("Contact request is already pending.");
+return;
+}
+
+await ref.set({
+fromUid:currentUser.uid,
+toUid:targetUid,
+fromName:senderSnap.exists?(senderSnap.data().name||""):"",
+fromUsername:senderSnap.exists?(senderSnap.data().username||""):"",
+toName:receiverSnap.exists?(receiverSnap.data().name||""):"",
+toUsername:receiverSnap.exists?(receiverSnap.data().username||""):"",
+status:"pending",
+createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+});
+
+alert("Add Contact Request sent.");
+searchUser();
+
+}catch(error){
+alert("Could not send contact request: "+error.message);
+}
+}
+
+// ACCEPT OR DECLINE
+
+async function respondRequest(collectionName,requestId,newStatus){
+if(!["accepted","rejected"].includes(newStatus))return;
+
+try{
+const ref=db.collection(collectionName).doc(requestId);
+
+await db.runTransaction(async tx=>{
+const snap=await tx.get(ref);
+if(!snap.exists)throw new Error("Request not found.");
+
+const data=snap.data();
+
+if(data.toUid!==currentUser.uid||data.status!=="pending"){
+throw new Error("You cannot update this request.");
+}
+
+tx.update(ref,{
+status:newStatus,
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+});
+});
+
+}catch(error){
+alert(error.message);
+}
+}
+
+// REQUEST LISTENERS
+
+function listenAllRequests(){
+if(!currentUser)return;
+
+["messageRequests","contactRequests"].forEach(collectionName=>{
+const unsub=db.collection(collectionName)
+.where("status","in",["pending","accepted"])
+.onSnapshot(snapshot=>{
+renderRequestCollection(collectionName,snapshot.docs.map(d=>({id:d.id,...d.data()})));
+},error=>console.error(collectionName,error));
+
+requestUnsubscribers.push(unsub);
+});
+}
+
+function renderRequestCollection(collectionName,items){
+const isMessage=collectionName==="messageRequests";
+const incomingId=isMessage?"incomingMessageRequests":"incomingContactRequests";
+const outgoingId=isMessage?"outgoingMessageRequests":"outgoingContactRequests";
+
+const incoming=items.filter(r=>r.toUid===currentUser.uid&&r.status==="pending");
+const outgoing=items.filter(r=>r.fromUid===currentUser.uid&&r.status==="pending");
+
+$(incomingId).innerHTML=incoming.length?incoming.map(r=>`
+<div class="item">
+<div class="item-title">${safeText(r.fromName||"Rymora User")}</div>
+<div class="muted">@${safeText(r.fromUsername||"")}</div>
+${isMessage?`<div class="small">Messages sent: ${r.messageCount||0} / 2</div>`:""}
+<div class="item-actions">
+<button onclick="respondRequest('${collectionName}','${r.id}','accepted')">Accept</button>
+<button class="danger" onclick="respondRequest('${collectionName}','${r.id}','rejected')">Decline</button>
+</div>
+${isMessage?`<div class="item-actions"><button class="secondary" onclick="openChat('${r.fromUid}','${safeText(r.fromName||"User")}','request')">View Messages</button></div>`:""}
+</div>
+`).join(""):'<p class="muted">No incoming requests.</p>';
+
+$(outgoingId).innerHTML=outgoing.length?outgoing.map(r=>`
+<div class="item">
+<div class="item-title">${safeText(r.toName||"Rymora User")}</div>
+<div class="muted">@${safeText(r.toUsername||"")}</div>
+<span class="status">Pending</span>
+${isMessage?`<div class="small">Messages sent: ${r.messageCount||0} / 2</div>`:""}
+</div>
+`).join(""):'<p class="muted">No sent requests.</p>';
+
+renderContacts();
+}
+
+// CONTACTS
+
+async function renderContacts(){
+if(!currentUser)return;
+
+try{
+const [messageSnap,contactSnap]=await Promise.all([
+db.collection("messageRequests").where("status","==","accepted").get(),
+db.collection("contactRequests").where("status","==","accepted").get()
+]);
+
+const map=new Map();
+
+messageSnap.docs.forEach(doc=>{
+const r=doc.data();
+
+if(r.fromUid===currentUser.uid||r.toUid===currentUser.uid){
+const otherUid=r.fromUid===currentUser.uid?r.toUid:r.fromUid;
+const otherName=r.fromUid===currentUser.uid?r.toName:r.fromName;
+const otherUsername=r.fromUid===currentUser.uid?r.toUsername:r.fromUsername;
+
+map.set(otherUid,{
+uid:otherUid,name:otherName,username:otherUsername,
+textAccepted:true,contactAccepted:false
+});
+}
+});
+
+contactSnap.docs.forEach(doc=>{
+const r=doc.data();
+
+if(r.fromUid===currentUser.uid||r.toUid===currentUser.uid){
+const otherUid=r.fromUid===currentUser.uid?r.toUid:r.fromUid;
+const otherName=r.fromUid===currentUser.uid?r.toName:r.fromName;
+const otherUsername=r.fromUid===currentUser.uid?r.toUsername:r.fromUsername;
+
+const old=map.get(otherUid)||{
+uid:otherUid,name:otherName,username:otherUsername,
+textAccepted:false,contactAccepted:false
+};
+
+old.contactAccepted=true;
+map.set(otherUid,old);
+}
+});
+
+const contacts=[...map.values()];
+
+const enriched=await Promise.all(contacts.map(async c=>{
+try{
+const snap=await db.collection("users").doc(c.uid).get();
+if(snap.exists){
+const p=snap.data();
+c.photoURL=p.photoURL||"";
+c.name=p.name||c.name;
+c.username=p.username||c.username;
+}
+}catch(e){}
+return c;
+}));
+
+$("contactsList").innerHTML=enriched.length?enriched.map(c=>{
+const avatar=c.photoURL
+?`<img src="${safeText(c.photoURL)}" style="width:45px;height:45px;border-radius:50%;object-fit:cover;">`
+:`<div class="profile-avatar" style="width:45px;height:45px;font-size:17px;margin:0;">${safeText((c.name||"R").charAt(0).toUpperCase())}</div>`;
+
+return `
+<div class="item">
+<div class="row">${avatar}<div>
+<div class="item-title">${safeText(c.name||"Rymora User")}</div>
+<div class="muted">@${safeText(c.username||"")}</div>
+</div></div>
+<span class="status">${c.textAccepted?"Text chat accepted":"No text chat"}</span>
+<span class="status">${c.contactAccepted?"Contact accepted":"Contact not accepted"}</span>
+<div class="item-actions">
+${c.textAccepted?`<button onclick="openChat('${c.uid}','${safeText(c.name||"Chat")}','accepted')">Open Chat</button>`:""}
+</div>
+</div>`;
+}).join(""):'<p class="muted">No accepted conversations or contacts yet.</p>';
+
+}catch(error){
+$("contactsList").textContent="Could not load contacts: "+error.message;
+}
+}
+
+// CHAT
+
+async function getRequestStatus(collectionName,uid1,uid2){
+const ids=[uid1+"_"+uid2,uid2+"_"+uid1];
+const snaps=await Promise.all(ids.map(id=>db.collection(collectionName).doc(id).get()));
+return snaps.find(s=>s.exists)?.data()||null;
+}
+
+async function openChat(otherUid,otherName,mode="accepted"){
+if(!currentUser||!otherUid)return;
+
+try{
+const request=await getRequestStatus("messageRequests",currentUser.uid,otherUid);
+const reverseRequest=await getRequestStatus("messageRequests",otherUid,currentUser.uid);
+
+const accepted=(request&&request.status==="accepted")||
+(reverseRequest&&reverseRequest.status==="accepted");
+
+const pendingIncoming=request&&request.status==="pending"&&request.toUid===currentUser.uid;
+const pendingOutgoing=reverseRequest&&reverseRequest.status==="pending"&&reverseRequest.fromUid===currentUser.uid;
+
+if(!accepted&&!pendingIncoming&&!pendingOutgoing){
+alert("You need a message request before chatting.");
+return;
+}
+
+activeChatUid=otherUid;
+activeChatId=pairId(currentUser.uid,otherUid);
+activeChatType=accepted?"accepted":"request";
+replyTarget=null;
+activeChatMessages=[];
+$("replyPreview").classList.add("hidden");
+$("replyPreviewText").textContent="";
+
+$("chatTitle").textContent="Chat with "+otherName;
+$("chatNotice").textContent=accepted
+?"Text chat is enabled. Contact permissions are managed separately."
+:"Message request chat. Pending sender is limited to two messages.";
+
+$("chatInput").disabled=false;
+$("sendChatBtn").disabled=false;
+
+if(messageUnsubscribe)messageUnsubscribe();
+
+messageUnsubscribe=db.collection("chats").doc(activeChatId)
+.collection("messages").orderBy("createdAt","asc").limit(100)
+.onSnapshot(snapshot=>{
+renderChat(snapshot.docs);
+},error=>{
+$("chatBox").textContent="Could not load messages: "+error.message;
+});
+
+}catch(error){
+alert("Could not open chat: "+error.message);
+}
+}
+
+function startReply(messageId){
+const message=activeChatMessages.find(item=>item.id===messageId);
+if(!message)return;
+
+replyTarget={
+messageId:message.id,
+senderUid:message.senderUid,
+text:message.text||""
+};
+
+const sender=message.senderUid===currentUser.uid?"You":"Contact";
+$("replyPreviewText").innerHTML=`<small>Replying to ${sender}</small>${safeText(replyTarget.text)}`;
+$("replyPreview").classList.remove("hidden");
+$("chatInput").focus();
+}
+
+function cancelReply(){
+replyTarget=null;
+$("replyPreview").classList.add("hidden");
+$("replyPreviewText").textContent="";
+}
+
+function jumpToMessage(messageId){
+const messageElement=document.getElementById("message-"+messageId);
+if(!messageElement)return;
+messageElement.scrollIntoView({behavior:"smooth",block:"center"});
+messageElement.classList.add("highlight");
+setTimeout(()=>messageElement.classList.remove("highlight"),1800);
+}
+
+function renderChat(docs){
+const box=$("chatBox");
+
+activeChatMessages=docs.map(doc=>({id:doc.id,...doc.data()}));
+
+if(!activeChatMessages.length){
+box.innerHTML='<p class="muted center">No messages yet.</p>';
+return;
+}
+
+box.innerHTML=activeChatMessages.map(m=>{
+const mine=m.senderUid===currentUser.uid;
+const time=m.createdAt&&m.createdAt.toDate?m.createdAt.toDate().toLocaleString():"";
+let replyHTML="";
+
+if(m.replyTo&&m.replyTo.messageId){
+const replySender=m.replyTo.senderUid===currentUser.uid?"You":"Contact";
+replyHTML=`<div class="reply-preview" onclick="jumpToMessage('${safeText(m.replyTo.messageId)}')"><small>Reply to ${replySender}</small>${safeText(m.replyTo.text||"")}</div>`;
+}
+
+return `<div id="message-${safeText(m.id)}" class="chat-message ${mine?"mine":""}">
+${replyHTML}
+<div>${safeText(m.text)}</div>
+<div class="chat-meta">${mine?"You":"Contact"} · ${safeText(time)}</div>
+<button class="reply-action secondary" onclick="startReply('${safeText(m.id)}')">Reply</button>
+</div>`;
+}).join("");
+
+box.scrollTop=box.scrollHeight;
+}
+
+async function addMessageToChat(targetUid,text,source,replyTo=null){
+const id=pairId(currentUser.uid,targetUid);
+
+await db.collection("chats").doc(id).collection("messages").add({
+senderUid:currentUser.uid,
+receiverUid:targetUid,
+text,
+source,
+replyTo:replyTo||null,
+createdAt:firebase.firestore.FieldValue.serverTimestamp()
+});
+}
+
+async function sendChatMessage(){
+const text=$("chatInput").value.trim();
+if(!text||!activeChatUid||!activeChatId)return;
+
+if(text.length>2000){
+alert("Message is too long.");
+return;
+}
+
+try{
+const [outgoing,incoming]=await Promise.all([
+db.collection("messageRequests").doc(currentUser.uid+"_"+activeChatUid).get(),
+db.collection("messageRequests").doc(activeChatUid+"_"+currentUser.uid).get()
+]);
+
+const accepted=(outgoing.exists&&outgoing.data().status==="accepted")||
+(incoming.exists&&incoming.data().status==="accepted");
+
+if(accepted){
+await addMessageToChat(activeChatUid,text,"accepted",replyTarget);
+}else{
+const outgoingData=outgoing.exists?outgoing.data():null;
+const incomingData=incoming.exists?incoming.data():null;
+
+if(outgoingData&&outgoingData.status==="pending"&&outgoingData.fromUid===currentUser.uid){
+await sendPendingMessage(activeChatUid,text,replyTarget);
+}else if(incomingData&&incomingData.status==="pending"&&incomingData.toUid===currentUser.uid){
+await addMessageToChat(activeChatUid,text,"request-reply",replyTarget);
+}else{
+alert("Message request is no longer active.");
+return;
+}
+}
+
+$("chatInput").value="";
+cancelReply();
+
+}catch(error){
+alert("Message could not be sent: "+error.message);
+}
+}
+
+$("chatInput").addEventListener("keydown",event=>{
+if(event.key==="Enter")sendChatMessage();
+});
+
+// DIAGNOSTICS
+
+async function runDiagnostics(){
+const el=$("diagnostics");
+
+if(!currentUser){
+el.textContent="Not signed in.";
+return;
+}
+
+el.textContent="Checking Firebase...";
+
+try{
+const snap=await db.collection("users").doc(currentUser.uid).get();
+
+el.innerHTML=`
+<div>Firebase: Connected</div>
+<div>Project: ${safeText(firebaseConfig.projectId)}</div>
+<div>Authentication: Signed in</div>
+<div>Email: ${safeText(currentUser.email||"")}</div>
+<div>Email verified: ${currentUser.emailVerified?"Yes":"No"}</div>
+<div>Profile document: ${snap.exists?"Found":"Not found"}</div>
+<div>Profile photo: ${snap.exists&&snap.data().photoURL?"Added":"Not added"}</div>
+<div>User ID: ${safeText(currentUser.uid)}</div>
+`;
+}catch(error){
+el.textContent="Diagnostics failed: "+error.message;
+}
+}
+
+// CLEANUP
+
+function stopListeners(){
+requestUnsubscribers.forEach(unsub=>unsub());
+requestUnsubscribers=[];
+
+if(messageUnsubscribe){
+messageUnsubscribe();
+messageUnsubscribe=null;
+}
+
+activeChatUid=null;
+activeChatId=null;
+
+$("chatInput").disabled=true;
+$("sendChatBtn").disabled=true;
+}
+</script>
+</body>
+</html>
