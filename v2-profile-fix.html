@@ -82,7 +82,17 @@ padding:8px 10px;margin:8px 0;font-size:12px;
 .chat-compose{display:flex;gap:8px}
 .chat-compose input{margin:0}
 #usernameSuggestions button{margin:4px;padding:8px 11px;font-size:12px}
-.photo-canvas{width:180px;height:180px;max-width:100%;border-radius:50%;background:#120b20}
+.photo-canvas {
+  width: 180px;
+  height: 180px;
+  max-width: 100%;
+  border-radius: 50%;
+  background: #120b20;
+  touch-action: none;
+  display: block;
+  margin: 10px auto;
+  border: 2px solid #8b5cf6;
+}
 @media(max-width:720px){
 .app-layout{grid-template-columns:1fr;padding:11px}
 .full{grid-column:auto}
