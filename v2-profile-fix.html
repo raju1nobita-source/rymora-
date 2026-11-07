@@ -626,33 +626,48 @@ photoCanvas.addEventListener("pointercancel", function(){
 });
 
 async function uploadProfilePhoto(){
-if(!currentUser||!selectedPhotoBlob){
-alert("Please select a photo first.");
-return;
-}
+  if(!currentUser||!photoImage){
+    alert("Please select a photo first.");
+    return;
+  }
 
-try{
-const path="profilePhotos/"+currentUser.uid+"/profile.jpg";
-const ref=storage.ref().child(path);
+  try{
+    const canvas=$("photoCanvas");
 
-await ref.put(selectedPhotoBlob,{contentType:"image/jpeg"});
-const photoURL=await ref.getDownloadURL();
+    const blob=await new Promise(resolve=>{
+      canvas.toBlob(resolve,"image/jpeg",0.85);
+    });
 
-await db.collection("users").doc(currentUser.uid).set({
-photoURL,
-updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-},{merge:true});
+    if(!blob){
+      throw new Error("Could not process the photo.");
+    }
 
-currentProfile={...(currentProfile||{}),photoURL};
-displayProfilePhoto(photoURL);
-$("photoEditor").classList.add("hidden");
-$("photoInput").value="";
-selectedPhotoBlob=null;
+    selectedPhotoBlob=blob;
 
-showMessage("profileMessage","Profile photo saved successfully.","ok");
-}catch(error){
-alert("Photo upload failed: "+error.message);
-}
+    const path="profilePhotos/"+currentUser.uid+"/profile.jpg";
+    const ref=storage.ref().child(path);
+
+    await ref.put(blob,{contentType:"image/jpeg"});
+    const photoURL=await ref.getDownloadURL();
+
+    await db.collection("users").doc(currentUser.uid).set({
+      photoURL,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    currentProfile={...(currentProfile||{}),photoURL};
+    displayProfilePhoto(photoURL);
+
+    $("photoEditor").classList.add("hidden");
+    $("photoInput").value="";
+    selectedPhotoBlob=null;
+    photoImage=null;
+
+    showMessage("profileMessage","Profile photo saved successfully.","ok");
+
+  }catch(error){
+    alert("Photo upload failed: "+error.message);
+  }
 }
 
 function cancelPhoto(){
