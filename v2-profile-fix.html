@@ -577,6 +577,53 @@ function setPhotoZoom(value){
   drawProfilePhoto();
 }
 
+let photoDragging = false;
+let photoLastX = 0;
+let photoLastY = 0;
+
+const photoCanvas = $("photoCanvas");
+
+photoCanvas.addEventListener("pointerdown", function(e){
+  if(!photoImage) return;
+
+  photoDragging = true;
+  photoLastX = e.clientX;
+  photoLastY = e.clientY;
+  photoCanvas.setPointerCapture(e.pointerId);
+});
+
+photoCanvas.addEventListener("pointermove", function(e){
+  if(!photoDragging) return;
+
+  const rect = photoCanvas.getBoundingClientRect();
+
+  photoX += (e.clientX-photoLastX)*512/rect.width;
+  photoY += (e.clientY-photoLastY)*512/rect.height;
+
+  photoLastX = e.clientX;
+  photoLastY = e.clientY;
+
+  const scale = Math.max(
+    512/photoImage.width,
+    512/photoImage.height
+  )*photoScale;
+
+  const maxX = Math.max(0,(photoImage.width*scale-512)/2);
+  const maxY = Math.max(0,(photoImage.height*scale-512)/2);
+
+  photoX = Math.max(-maxX,Math.min(maxX,photoX));
+  photoY = Math.max(-maxY,Math.min(maxY,photoY));
+
+  drawProfilePhoto();
+});
+
+photoCanvas.addEventListener("pointerup", function(){
+  photoDragging = false;
+});
+
+photoCanvas.addEventListener("pointercancel", function(){
+  photoDragging = false;
+});
 async function uploadProfilePhoto(){
 if(!currentUser||!selectedPhotoBlob){
 alert("Please select a photo first.");
