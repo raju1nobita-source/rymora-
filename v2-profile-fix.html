@@ -777,6 +777,23 @@ box.innerHTML=shownUsernameSuggestions.length
 :"Suggestion selected. Tap Suggest Username for more.";
 }
 
+let usernameSuggestionTimer;
+
+$("profileName").addEventListener("input", function(){
+  clearTimeout(usernameSuggestionTimer);
+
+  const box = $("usernameSuggestions");
+  box.textContent = "Enter your name to get suggestions...";
+
+  usernameSuggestionTimer = setTimeout(function(){
+    if($("profileName").value.trim().length >= 2){
+      generateUsernameSuggestions();
+    } else {
+      box.textContent = "Enter at least 2 characters.";
+    }
+  }, 700);
+});
+  
 // LOAD PROFILE
 
 async function loadProfile(){
