@@ -501,52 +501,80 @@ initial.textContent=name.charAt(0).toUpperCase();
 }
 }
 
+let photoImage = null;
+let photoScale = 1;
+let photoX = 0;
+let photoY = 0;
+
 function previewProfilePhoto(event){
-const file=event.target.files&&event.target.files[0];
-if(!file)return;
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
 
-if(!file.type.startsWith("image/")){
-alert("Please select an image.");
-return;
+  if(!file.type.startsWith("image/")){
+    alert("Please select an image.");
+    return;
+  }
+
+  if(file.size > 10*1024*1024){
+    alert("Image must be smaller than 10 MB.");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    const image = new Image();
+
+    image.onload = function(){
+      photoImage = image;
+      photoScale = 1;
+      photoX = 0;
+      photoY = 0;
+
+      $("photoZoom").value = 1;
+      $("photoEditor").classList.remove("hidden");
+
+      drawProfilePhoto();
+    };
+
+    image.onerror = () => alert("Could not open this image.");
+    image.src = e.target.result;
+  };
+
+  reader.readAsDataURL(file);
 }
-if(file.size>10*1024*1024){
-alert("Image must be smaller than 10 MB.");
-return;
+
+function drawProfilePhoto(){
+  if(!photoImage) return;
+
+  const canvas = $("photoCanvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = 512;
+  canvas.height = 512;
+
+  const scale = Math.max(
+    512/photoImage.width,
+    512/photoImage.height
+  ) * photoScale;
+
+  const width = photoImage.width * scale;
+  const height = photoImage.height * scale;
+
+  const x = (512-width)/2 + photoX;
+  const y = (512-height)/2 + photoY;
+
+  ctx.clearRect(0,0,512,512);
+  ctx.drawImage(photoImage,x,y,width,height);
+
+  canvas.toBlob(blob=>{
+    if(blob) selectedPhotoBlob = blob;
+  },"image/jpeg",0.85);
 }
 
-const reader=new FileReader();
-
-reader.onload=function(e){
-const image=new Image();
-
-image.onload=function(){
-const canvas=$("photoCanvas");
-const ctx=canvas.getContext("2d");
-const size=Math.min(image.width,image.height);
-const sx=(image.width-size)/2;
-const sy=(image.height-size)/2;
-
-canvas.width=512;
-canvas.height=512;
-
-ctx.clearRect(0,0,512,512);
-ctx.drawImage(image,sx,sy,size,size,0,0,512,512);
-
-canvas.toBlob(blob=>{
-if(!blob){
-alert("Could not process this image.");
-return;
-}
-selectedPhotoBlob=blob;
-$("photoEditor").classList.remove("hidden");
-},"image/jpeg",0.85);
-};
-
-image.onerror=()=>alert("Could not open this image.");
-image.src=e.target.result;
-};
-
-reader.readAsDataURL(file);
+function setPhotoZoom(value){
+  photoScale = Number(value);
+  drawProfilePhoto();
 }
 
 async function uploadProfilePhoto(){
