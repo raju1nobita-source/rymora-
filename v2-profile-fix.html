@@ -44,7 +44,7 @@ textarea{resize:vertical;min-height:75px}
 header{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:12px 17px;background:#180f29;border-bottom:1px solid var(--border)}
 .header-brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800}
 .mini-logo{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,#a78bfa,#6d28d9);font-weight:900}
-.app-layout{max-width:1100px;margin:auto;padding:16px;display:grid;grid-template-columns:1fr 1HTap:14px}
+.app-layout{max-width:1100px;margin:auto;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .panel{min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:16px}
 .panel h3{margin:0 0 12px;font-size:17px}
 .full{grid-column:1/-1}
@@ -179,7 +179,7 @@ title="Tap to add or change profile photo">
 <img id="profilePhotoPreview" class="hidden" alt="Profile photo">
 </div>
 
-<p class="small center">Tap your profile icon to add or change photo</p>
+<p class="small center">Select or crop a photo, then press Save Profile to save everything together.</p>
 <input id="photoInput" type="file" accept="image/*" class="hidden" onchange="previewProfilePhoto(event)">
 
 <div id="photoEditor" class="hidden">
@@ -200,8 +200,7 @@ title="Tap to add or change profile photo">
          oninput="setPhotoZoom(this.value)">
 
   <div class="item-actions">
-   <button type="button" onclick="uploadProfilePhoto()">Save Photo</button> 
-    <button class="secondary" onclick="cancelPhoto()">Cancel</button>
+    <button class="secondary" type="button" onclick="cancelPhoto()">Cancel Photo</button>
     <button class="danger" onclick="removeProfilePhoto()">Remove Photo</button>
   </div>
 </div>
@@ -625,53 +624,11 @@ photoCanvas.addEventListener("pointercancel", function(){
   photoDragging = false;
 });
 
-async function uploadProfilePhoto(){
-  if(!currentUser||!photoImage){
-    alert("Please select a photo first.");
-    return;
-  }
 
-  try{
-    const canvas=$("photoCanvas");
-
-    const blob=await new Promise(resolve=>{
-      canvas.toBlob(resolve,"image/jpeg",0.85);
-    });
-
-    if(!blob){
-      throw new Error("Could not process the photo.");
-    }
-
-    selectedPhotoBlob=blob;
-
-    const path="profilePhotos/"+currentUser.uid+"/profile.jpg";
-    const ref=storage.ref().child(path);
-
-    await ref.put(blob,{contentType:"image/jpeg"});
-    const photoURL=await ref.getDownloadURL();
-
-    await db.collection("users").doc(currentUser.uid).set({
-      photoURL,
-      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-    },{merge:true});
-
-    currentProfile={...(currentProfile||{}),photoURL};
-    displayProfilePhoto(photoURL);
-
-    $("photoEditor").classList.add("hidden");
-    $("photoInput").value="";
-    selectedPhotoBlob=null;
-    photoImage=null;
-
-    showMessage("profileMessage","Profile photo saved successfully.","ok");
-
-  }catch(error){
-    alert("Photo upload failed: "+error.message);
-  }
-}
 
 function cancelPhoto(){
 selectedPhotoBlob=null;
+photoImage=null;
 $("photoEditor").classList.add("hidden");
 $("photoInput").value="";
 }
@@ -826,6 +783,7 @@ showMessage("profileMessage",error.message,"error");
 async function saveProfile(){
 if(!currentUser)return;
 
+const saveButton=document.querySelector('button[onclick="saveProfile()"]');
 const name=$("profileName").value.trim();
 const username=cleanUsername($("profileUsername").value);
 const bio=$("profileBio").value.trim();
@@ -841,49 +799,79 @@ return;
 }
 
 const userRef=db.collection("users").doc(currentUser.uid);
+if(saveButton)saveButton.disabled=true;
+showMessage("profileMessage","Saving your profile...","ok");
 
 try{
-await db.runTransaction(async tx=>{
-const userSnap=await tx.get(userRef);
-const oldUsername=cleanUsername(userSnap.exists?userSnap.data().username:"");
-const newUsernameRef=db.collection("usernames").doc(username);
-const newUsernameSnap=await tx.get(newUsernameRef);
+  // If a new photo is selected, upload the current cropped canvas first.
+  // Otherwise the existing photo URL remains unchanged.
+  let photoURL=(currentProfile&&currentProfile.photoURL)||"";
+  if(photoImage){
+    const canvas=$("photoCanvas");
+    const blob=await new Promise((resolve,reject)=>{
+      canvas.toBlob(result=>{
+        if(result)resolve(result);
+        else reject(new Error("Could not process the selected photo."));
+      },"image/jpeg",0.85);
+    });
+    const photoRef=storage.ref().child("profilePhotos/"+currentUser.uid+"/profile.jpg");
+    await photoRef.put(blob,{contentType:"image/jpeg"});
+    photoURL=await photoRef.getDownloadURL();
+  }
 
-if(newUsernameSnap.exists&&newUsernameSnap.data().uid!==currentUser.uid){
-throw new Error("This username is already taken. Choose another one.");
-}
+  await db.runTransaction(async tx=>{
+    const userSnap=await tx.get(userRef);
+    const oldUsername=cleanUsername(userSnap.exists?userSnap.data().username:"");
+    const newUsernameRef=db.collection("usernames").doc(username);
+    const newUsernameSnap=await tx.get(newUsernameRef);
 
-if(oldUsername&&oldUsername!==username){
-const oldRef=db.collection("usernames").doc(oldUsername);
-const oldSnap=await tx.get(oldRef);
+    if(newUsernameSnap.exists&&newUsernameSnap.data().uid!==currentUser.uid){
+      throw new Error("This username is already taken. Choose another one.");
+    }
 
-if(oldSnap.exists&&oldSnap.data().uid===currentUser.uid){
-tx.delete(oldRef);
-}
-}
+    if(oldUsername&&oldUsername!==username){
+      const oldRef=db.collection("usernames").doc(oldUsername);
+      const oldSnap=await tx.get(oldRef);
+      if(oldSnap.exists&&oldSnap.data().uid===currentUser.uid){
+        tx.delete(oldRef);
+      }
+    }
 
-tx.set(newUsernameRef,{
-uid:currentUser.uid,
-username,
-updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-});
+    tx.set(newUsernameRef,{
+      uid:currentUser.uid,
+      username,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
 
-tx.set(userRef,{
-uid:currentUser.uid,
-name,
-email:currentUser.email||"",
-username,bio,phone,
-phoneVerificationStatus:phone?"Unverified":"Not provided",
-updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-},{merge:true});
-});
+    const profileData={
+      uid:currentUser.uid,
+      name,
+      email:currentUser.email||"",
+      username,
+      bio,
+      phone,
+      phoneVerificationStatus:phone?"Unverified":"Not provided",
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if(photoURL)profileData.photoURL=photoURL;
 
-await currentUser.updateProfile({displayName:name});
-await loadProfile();
-showMessage("profileMessage","Profile saved successfully.","ok");
+    tx.set(userRef,profileData,{merge:true});
+  });
+
+  await currentUser.updateProfile({displayName:name});
+  if(photoImage){
+    photoImage=null;
+    selectedPhotoBlob=null;
+    $("photoInput").value="";
+    $("photoEditor").classList.add("hidden");
+  }
+  await loadProfile();
+  showMessage("profileMessage","Profile and photo saved successfully.","ok");
 
 }catch(error){
-showMessage("profileMessage",error.message||"Could not save profile.","error");
+  showMessage("profileMessage",error.message||"Could not save profile.","error");
+}finally{
+  if(saveButton)saveButton.disabled=false;
 }
 }
 
