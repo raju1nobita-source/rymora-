@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#160d2b">
-<title>Rymora V1.9.1</title>
+<title>Rymora V2.0</title>
 
 <style>
 :root{
@@ -66,10 +66,33 @@ header{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-c
 .chat-message{max-width:85%;width:fit-content;padding:10px 12px;border-radius:12px;background:#2b2040;margin:8px 0;overflow-wrap:anywhere}
 .chat-message.mine{margin-left:auto;background:#5734a0}
 .chat-meta{font-size:10px;color:#d4c5ef;margin-top:5px}
+.reply-preview{
+background:#211632;border-left:3px solid #a78bfa;border-radius:7px;
+padding:7px 9px;margin-bottom:8px;font-size:12px;cursor:pointer;color:#e8ddff;
+}
+.reply-preview small{display:block;color:#bba9d8;margin-bottom:3px}
+.reply-compose{
+display:flex;align-items:center;justify-content:space-between;gap:8px;
+background:#211632;border:1px solid #7653a8;border-radius:9px;
+padding:8px 10px;margin:8px 0;font-size:12px;
+}
+.reply-compose button{padding:5px 9px}
+.chat-message.highlight{outline:2px solid #facc15;transition:outline .2s}
+.reply-action{display:block;margin-top:6px;padding:4px 8px;font-size:11px;background:#382653}
 .chat-compose{display:flex;gap:8px}
 .chat-compose input{margin:0}
 #usernameSuggestions button{margin:4px;padding:8px 11px;font-size:12px}
-.photo-canvas{width:180px;height:180px;max-width:100%;border-radius:50%;background:#120b20}
+.photo-canvas {
+  width: 180px;
+  height: 180px;
+  max-width: 100%;
+  border-radius: 50%;
+  background: #120b20;
+  touch-action: none;
+  display: block;
+  margin: 10px auto;
+  border: 2px solid #8b5cf6;
+}
 @media(max-width:720px){
 .app-layout{grid-template-columns:1fr;padding:11px}
 .full{grid-column:auto}
@@ -156,17 +179,30 @@ title="Tap to add or change profile photo">
 <img id="profilePhotoPreview" class="hidden" alt="Profile photo">
 </div>
 
-<p class="small center">Tap your profile icon to add or change photo</p>
+<p class="small center">Select or crop a photo, then press Save Profile to save everything together.</p>
 <input id="photoInput" type="file" accept="image/*" class="hidden" onchange="previewProfilePhoto(event)">
 
 <div id="photoEditor" class="hidden">
-<p class="small">Photo preview (center crop)</p>
-<canvas id="photoCanvas" class="photo-canvas"></canvas>
-<div class="item-actions">
-<button onclick="uploadProfilePhoto()">Save Photo</button>
-<button class="secondary" onclick="cancelPhoto()">Cancel</button>
-<button class="danger" onclick="removeProfilePhoto()">Remove Photo</button>
-</div>
+  <p class="small">Drag photo to adjust position</p>
+
+  <canvas id="photoCanvas"
+          class="photo-canvas"
+          width="512"
+          height="512"></canvas>
+
+  <label>Zoom Photo</label>
+  <input id="photoZoom"
+         type="range"
+         min="1"
+         max="3"
+         step="0.05"
+         value="1"
+         oninput="setPhotoZoom(this.value)">
+
+  <div class="item-actions">
+    <button class="secondary" type="button" onclick="cancelPhoto()">Cancel Photo</button>
+    <button class="danger" onclick="removeProfilePhoto()">Remove Photo</button>
+  </div>
 </div>
 
 <input id="profileName" placeholder="Your name" maxlength="50">
@@ -231,6 +267,7 @@ Tap Suggest Username to see available names.
 <h3 id="chatTitle">Messages</h3>
 <p id="chatNotice" class="muted">Choose a conversation to start chatting.</p>
 <div id="chatBox" class="chat-box"><p class="muted center">Your messages will appear here.</p></div>
+<div id="replyPreview" class="reply-compose hidden"><div id="replyPreviewText"></div><button class="danger" onclick="cancelReply()">Cancel</button></div>
 <div class="chat-compose">
 <input id="chatInput" placeholder="Write a message..." maxlength="2000" disabled>
 <button id="sendChatBtn" onclick="sendChatMessage()" disabled>Send</button>
@@ -249,7 +286,6 @@ Tap Suggest Username to see available names.
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 
 <script>
 const firebaseConfig={
@@ -261,17 +297,23 @@ messagingSenderId:"1097264616928",
 appId:"1:1097264616928:web:35fce6bec344f5e2fc8785"
 };
 
+// ImageKit public configuration. Replace these two placeholders after setup.
+// Never place the ImageKit PRIVATE key in this HTML file.
+const IMAGEKIT_PUBLIC_KEY="PASTE_IMAGEKIT_PUBLIC_KEY_HERE";
+const IMAGEKIT_AUTH_ENDPOINT="PASTE_CLOUDFLARE_WORKER_URL_HERE";
+
 firebase.initializeApp(firebaseConfig);
 
 const auth=firebase.auth();
 const db=firebase.firestore();
-const storage=firebase.storage();
 
 let currentUser=null;
 let currentProfile=null;
 let activeChatUid=null;
 let activeChatId=null;
 let activeChatType=null;
+let replyTarget=null;
+let activeChatMessages=[];
 let requestUnsubscribers=[];
 let messageUnsubscribe=null;
 
@@ -461,86 +503,135 @@ initial.textContent=name.charAt(0).toUpperCase();
 }
 }
 
+let photoImage = null;
+let photoScale = 1;
+let photoX = 0;
+let photoY = 0;
+
 function previewProfilePhoto(event){
-const file=event.target.files&&event.target.files[0];
-if(!file)return;
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
 
-if(!file.type.startsWith("image/")){
-alert("Please select an image.");
-return;
-}
-if(file.size>10*1024*1024){
-alert("Image must be smaller than 10 MB.");
-return;
-}
+  if(!file.type.startsWith("image/")){
+    alert("Please select an image.");
+    return;
+  }
 
-const reader=new FileReader();
+  if(file.size > 10*1024*1024){
+    alert("Image must be smaller than 10 MB.");
+    return;
+  }
 
-reader.onload=function(e){
-const image=new Image();
+  const reader = new FileReader();
 
-image.onload=function(){
-const canvas=$("photoCanvas");
-const ctx=canvas.getContext("2d");
-const size=Math.min(image.width,image.height);
-const sx=(image.width-size)/2;
-const sy=(image.height-size)/2;
+  reader.onload = function(e){
+    const image = new Image();
 
-canvas.width=512;
-canvas.height=512;
+    image.onload = function(){
+      photoImage = image;
+      photoScale = 1;
+      photoX = 0;
+      photoY = 0;
 
-ctx.clearRect(0,0,512,512);
-ctx.drawImage(image,sx,sy,size,size,0,0,512,512);
+      $("photoZoom").value = 1;
+      $("photoEditor").classList.remove("hidden");
 
-canvas.toBlob(blob=>{
-if(!blob){
-alert("Could not process this image.");
-return;
-}
-selectedPhotoBlob=blob;
-$("photoEditor").classList.remove("hidden");
-},"image/jpeg",0.85);
-};
+      drawProfilePhoto();
+    };
 
-image.onerror=()=>alert("Could not open this image.");
-image.src=e.target.result;
-};
+    image.onerror = () => alert("Could not open this image.");
+    image.src = e.target.result;
+  };
 
-reader.readAsDataURL(file);
+  reader.readAsDataURL(file);
 }
 
-async function uploadProfilePhoto(){
-if(!currentUser||!selectedPhotoBlob){
-alert("Please select a photo first.");
-return;
+function drawProfilePhoto(){
+  if(!photoImage) return;
+
+  const canvas = $("photoCanvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = 512;
+  canvas.height = 512;
+
+  const scale = Math.max(
+    512/photoImage.width,
+    512/photoImage.height
+  ) * photoScale;
+
+  const width = photoImage.width * scale;
+  const height = photoImage.height * scale;
+
+  const x = (512-width)/2 + photoX;
+  const y = (512-height)/2 + photoY;
+
+  ctx.clearRect(0,0,512,512);
+  ctx.drawImage(photoImage,x,y,width,height);
+
+  canvas.toBlob(blob=>{
+    if(blob) selectedPhotoBlob = blob;
+  },"image/jpeg",0.85);
 }
 
-try{
-const path="profilePhotos/"+currentUser.uid+"/profile.jpg";
-const ref=storage.ref().child(path);
-
-await ref.put(selectedPhotoBlob,{contentType:"image/jpeg"});
-const photoURL=await ref.getDownloadURL();
-
-await db.collection("users").doc(currentUser.uid).set({
-photoURL,
-updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-},{merge:true});
-
-currentProfile={...(currentProfile||{}),photoURL};
-displayProfilePhoto(photoURL);
-$("photoEditor").classList.add("hidden");
-$("photoInput").value="";
-selectedPhotoBlob=null;
-
-showMessage("profileMessage","Profile photo saved successfully.","ok");
-}catch(error){
-alert("Photo upload failed: "+error.message);
+function setPhotoZoom(value){
+  photoScale = Number(value);
+  drawProfilePhoto();
 }
-}
+
+let photoDragging = false;
+let photoLastX = 0;
+let photoLastY = 0;
+
+const photoCanvas = $("photoCanvas");
+
+photoCanvas.addEventListener("pointerdown", function(e){
+  if(!photoImage) return;
+
+  photoDragging = true;
+  photoLastX = e.clientX;
+  photoLastY = e.clientY;
+  photoCanvas.setPointerCapture(e.pointerId);
+});
+
+photoCanvas.addEventListener("pointermove", function(e){
+  if(!photoDragging) return;
+
+  const rect = photoCanvas.getBoundingClientRect();
+
+  photoX += (e.clientX-photoLastX)*512/rect.width;
+  photoY += (e.clientY-photoLastY)*512/rect.height;
+
+  photoLastX = e.clientX;
+  photoLastY = e.clientY;
+
+  const scale = Math.max(
+    512/photoImage.width,
+    512/photoImage.height
+  )*photoScale;
+
+  const maxX = Math.max(0,(photoImage.width*scale-512)/2);
+  const maxY = Math.max(0,(photoImage.height*scale-512)/2);
+
+  photoX = Math.max(-maxX,Math.min(maxX,photoX));
+  photoY = Math.max(-maxY,Math.min(maxY,photoY));
+
+  drawProfilePhoto();
+});
+
+photoCanvas.addEventListener("pointerup", function(){
+  photoDragging = false;
+});
+
+photoCanvas.addEventListener("pointercancel", function(){
+  photoDragging = false;
+});
+
+
 
 function cancelPhoto(){
 selectedPhotoBlob=null;
+photoImage=null;
 $("photoEditor").classList.add("hidden");
 $("photoInput").value="";
 }
@@ -550,16 +641,8 @@ if(!currentUser)return;
 if(!confirm("Remove your profile photo?"))return;
 
 try{
-const ref=storage.ref().child(
-"profilePhotos/"+currentUser.uid+"/profile.jpg"
-);
-
-try{
-await ref.delete();
-}catch(error){
-if(error.code!=="storage/object-not-found")throw error;
-}
-
+// This clears the profile reference in Firestore. The old ImageKit file remains
+// in the media library until a server-side delete endpoint is added.
 await db.collection("users").doc(currentUser.uid).set({
 photoURL:firebase.firestore.FieldValue.delete(),
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -646,6 +729,23 @@ box.innerHTML=shownUsernameSuggestions.length
 :"Suggestion selected. Tap Suggest Username for more.";
 }
 
+let usernameSuggestionTimer;
+
+$("profileName").addEventListener("input", function(){
+  clearTimeout(usernameSuggestionTimer);
+
+  const box = $("usernameSuggestions");
+  box.textContent = "Enter your name to get suggestions...";
+
+  usernameSuggestionTimer = setTimeout(function(){
+    if($("profileName").value.trim().length >= 2){
+      generateUsernameSuggestions();
+    } else {
+      box.textContent = "Enter at least 2 characters.";
+    }
+  }, 700);
+});
+  
 // LOAD PROFILE
 
 async function loadProfile(){
@@ -673,11 +773,48 @@ showMessage("profileMessage",error.message,"error");
 }
 }
 
+// IMAGEKIT UPLOAD (private key stays inside Cloudflare Worker)
+async function uploadImageToImageKit(blob,fileName){
+  if(!IMAGEKIT_PUBLIC_KEY || IMAGEKIT_PUBLIC_KEY.includes("PASTE_")){
+    throw new Error("ImageKit Public Key is not configured yet.");
+  }
+  if(!IMAGEKIT_AUTH_ENDPOINT || IMAGEKIT_AUTH_ENDPOINT.includes("PASTE_")){
+    throw new Error("Cloudflare Worker URL is not configured yet.");
+  }
+  const idToken=await currentUser.getIdToken(true);
+  const authResponse=await fetch(IMAGEKIT_AUTH_ENDPOINT,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+idToken},
+    body:JSON.stringify({})
+  });
+  const authData=await authResponse.json().catch(()=>({}));
+  if(!authResponse.ok)throw new Error(authData.error||"Could not get secure ImageKit upload permission.");
+
+  const form=new FormData();
+  form.append("file",blob,fileName);
+  form.append("fileName",fileName);
+  form.append("publicKey",IMAGEKIT_PUBLIC_KEY);
+  form.append("token",authData.token);
+  form.append("expire",String(authData.expire));
+  form.append("signature",authData.signature);
+  form.append("folder","/rymora/profilePhotos/"+currentUser.uid);
+  form.append("useUniqueFileName","true");
+
+  const uploadResponse=await fetch("https://upload.imagekit.io/api/v1/files/upload",{
+    method:"POST",body:form
+  });
+  const uploadData=await uploadResponse.json().catch(()=>({}));
+  if(!uploadResponse.ok)throw new Error(uploadData.message||uploadData.help||"ImageKit upload failed.");
+  if(!uploadData.url)throw new Error("ImageKit did not return a photo URL.");
+  return uploadData.url;
+}
+
 // SAVE PROFILE
 
 async function saveProfile(){
 if(!currentUser)return;
 
+const saveButton=document.querySelector('button[onclick="saveProfile()"]');
 const name=$("profileName").value.trim();
 const username=cleanUsername($("profileUsername").value);
 const bio=$("profileBio").value.trim();
@@ -693,49 +830,77 @@ return;
 }
 
 const userRef=db.collection("users").doc(currentUser.uid);
+if(saveButton)saveButton.disabled=true;
+showMessage("profileMessage","Saving your profile...","ok");
 
 try{
-await db.runTransaction(async tx=>{
-const userSnap=await tx.get(userRef);
-const oldUsername=cleanUsername(userSnap.exists?userSnap.data().username:"");
-const newUsernameRef=db.collection("usernames").doc(username);
-const newUsernameSnap=await tx.get(newUsernameRef);
+  // If a new photo is selected, upload the current cropped canvas first.
+  // Otherwise the existing photo URL remains unchanged.
+  let photoURL=(currentProfile&&currentProfile.photoURL)||"";
+  if(photoImage){
+    const canvas=$("photoCanvas");
+    const blob=await new Promise((resolve,reject)=>{
+      canvas.toBlob(result=>{
+        if(result)resolve(result);
+        else reject(new Error("Could not process the selected photo."));
+      },"image/jpeg",0.85);
+    });
+    photoURL=await uploadImageToImageKit(blob,"rymora-profile-"+currentUser.uid+".jpg");
+  }
 
-if(newUsernameSnap.exists&&newUsernameSnap.data().uid!==currentUser.uid){
-throw new Error("This username is already taken. Choose another one.");
-}
+  await db.runTransaction(async tx=>{
+    const userSnap=await tx.get(userRef);
+    const oldUsername=cleanUsername(userSnap.exists?userSnap.data().username:"");
+    const newUsernameRef=db.collection("usernames").doc(username);
+    const newUsernameSnap=await tx.get(newUsernameRef);
 
-if(oldUsername&&oldUsername!==username){
-const oldRef=db.collection("usernames").doc(oldUsername);
-const oldSnap=await tx.get(oldRef);
+    if(newUsernameSnap.exists&&newUsernameSnap.data().uid!==currentUser.uid){
+      throw new Error("This username is already taken. Choose another one.");
+    }
 
-if(oldSnap.exists&&oldSnap.data().uid===currentUser.uid){
-tx.delete(oldRef);
-}
-}
+    if(oldUsername&&oldUsername!==username){
+      const oldRef=db.collection("usernames").doc(oldUsername);
+      const oldSnap=await tx.get(oldRef);
+      if(oldSnap.exists&&oldSnap.data().uid===currentUser.uid){
+        tx.delete(oldRef);
+      }
+    }
 
-tx.set(newUsernameRef,{
-uid:currentUser.uid,
-username,
-updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-});
+    tx.set(newUsernameRef,{
+      uid:currentUser.uid,
+      username,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
 
-tx.set(userRef,{
-uid:currentUser.uid,
-name,
-email:currentUser.email||"",
-username,bio,phone,
-phoneVerificationStatus:phone?"Unverified":"Not provided",
-updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-},{merge:true});
-});
+    const profileData={
+      uid:currentUser.uid,
+      name,
+      email:currentUser.email||"",
+      username,
+      bio,
+      phone,
+      phoneVerificationStatus:phone?"Unverified":"Not provided",
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if(photoURL)profileData.photoURL=photoURL;
 
-await currentUser.updateProfile({displayName:name});
-await loadProfile();
-showMessage("profileMessage","Profile saved successfully.","ok");
+    tx.set(userRef,profileData,{merge:true});
+  });
+
+  await currentUser.updateProfile({displayName:name});
+  if(photoImage){
+    photoImage=null;
+    selectedPhotoBlob=null;
+    $("photoInput").value="";
+    $("photoEditor").classList.add("hidden");
+  }
+  await loadProfile();
+  showMessage("profileMessage","Profile and photo saved successfully.","ok");
 
 }catch(error){
-showMessage("profileMessage",error.message||"Could not save profile.","error");
+  showMessage("profileMessage",error.message||"Could not save profile.","error");
+}finally{
+  if(saveButton)saveButton.disabled=false;
 }
 }
 
@@ -882,8 +1047,7 @@ searchUser();
 alert(error.message||"Could not send message request.");
 }
 }
-
-async function sendPendingMessage(targetUid,text){
+async function sendPendingMessage(targetUid,text,replyTo=null){
 const ref=db.collection("messageRequests").doc(currentUser.uid+"_"+targetUid);
 
 await db.runTransaction(async tx=>{
@@ -902,7 +1066,7 @@ updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 });
 });
 
-await addMessageToChat(targetUid,text,"request");
+await addMessageToChat(targetUid,text,"request",replyTo);
 }
 
 // CONTACT REQUEST
@@ -931,10 +1095,10 @@ return;
 await ref.set({
 fromUid:currentUser.uid,
 toUid:targetUid,
-fromName:senderSnap.exists?senderSnap.data().name||":"",
-fromUsername:senderSnap.exists?senderSnap.data().username||":"",
-toName:receiverSnap.exists?receiverSnap.data().name||":"",
-toUsername:receiverSnap.exists?receiverSnap.data().username||":"",
+fromName:senderSnap.exists?(senderSnap.data().name||""):"",
+fromUsername:senderSnap.exists?(senderSnap.data().username||""):"",
+toName:receiverSnap.exists?(receiverSnap.data().name||""):"",
+toUsername:receiverSnap.exists?(receiverSnap.data().username||""):"",
 status:"pending",
 createdAt:firebase.firestore.FieldValue.serverTimestamp(),
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -1140,6 +1304,10 @@ return;
 activeChatUid=otherUid;
 activeChatId=pairId(currentUser.uid,otherUid);
 activeChatType=accepted?"accepted":"request";
+replyTarget=null;
+activeChatMessages=[];
+$("replyPreview").classList.add("hidden");
+$("replyPreviewText").textContent="";
 
 $("chatTitle").textContent="Chat with "+otherName;
 $("chatNotice").textContent=accepted
@@ -1164,29 +1332,68 @@ alert("Could not open chat: "+error.message);
 }
 }
 
+function startReply(messageId){
+const message=activeChatMessages.find(item=>item.id===messageId);
+if(!message)return;
+
+replyTarget={
+messageId:message.id,
+senderUid:message.senderUid,
+text:message.text||""
+};
+
+const sender=message.senderUid===currentUser.uid?"You":"Contact";
+$("replyPreviewText").innerHTML=`<small>Replying to ${sender}</small>${safeText(replyTarget.text)}`;
+$("replyPreview").classList.remove("hidden");
+$("chatInput").focus();
+}
+
+function cancelReply(){
+replyTarget=null;
+$("replyPreview").classList.add("hidden");
+$("replyPreviewText").textContent="";
+}
+
+function jumpToMessage(messageId){
+const messageElement=document.getElementById("message-"+messageId);
+if(!messageElement)return;
+messageElement.scrollIntoView({behavior:"smooth",block:"center"});
+messageElement.classList.add("highlight");
+setTimeout(()=>messageElement.classList.remove("highlight"),1800);
+}
+
 function renderChat(docs){
 const box=$("chatBox");
 
-if(!docs.length){
+activeChatMessages=docs.map(doc=>({id:doc.id,...doc.data()}));
+
+if(!activeChatMessages.length){
 box.innerHTML='<p class="muted center">No messages yet.</p>';
 return;
 }
 
-box.innerHTML=docs.map(doc=>{
-const m=doc.data();
+box.innerHTML=activeChatMessages.map(m=>{
 const mine=m.senderUid===currentUser.uid;
 const time=m.createdAt&&m.createdAt.toDate?m.createdAt.toDate().toLocaleString():"";
+let replyHTML="";
 
-return `<div class="chat-message ${mine?"mine":""}">
+if(m.replyTo&&m.replyTo.messageId){
+const replySender=m.replyTo.senderUid===currentUser.uid?"You":"Contact";
+replyHTML=`<div class="reply-preview" onclick="jumpToMessage('${safeText(m.replyTo.messageId)}')"><small>Reply to ${replySender}</small>${safeText(m.replyTo.text||"")}</div>`;
+}
+
+return `<div id="message-${safeText(m.id)}" class="chat-message ${mine?"mine":""}">
+${replyHTML}
 <div>${safeText(m.text)}</div>
 <div class="chat-meta">${mine?"You":"Contact"} · ${safeText(time)}</div>
+<button class="reply-action secondary" onclick="startReply('${safeText(m.id)}')">Reply</button>
 </div>`;
 }).join("");
 
 box.scrollTop=box.scrollHeight;
 }
 
-async function addMessageToChat(targetUid,text,source){
+async function addMessageToChat(targetUid,text,source,replyTo=null){
 const id=pairId(currentUser.uid,targetUid);
 
 await db.collection("chats").doc(id).collection("messages").add({
@@ -1194,6 +1401,7 @@ senderUid:currentUser.uid,
 receiverUid:targetUid,
 text,
 source,
+replyTo:replyTo||null,
 createdAt:firebase.firestore.FieldValue.serverTimestamp()
 });
 }
@@ -1217,15 +1425,15 @@ const accepted=(outgoing.exists&&outgoing.data().status==="accepted")||
 (incoming.exists&&incoming.data().status==="accepted");
 
 if(accepted){
-await addMessageToChat(activeChatUid,text,"accepted");
+await addMessageToChat(activeChatUid,text,"accepted",replyTarget);
 }else{
 const outgoingData=outgoing.exists?outgoing.data():null;
 const incomingData=incoming.exists?incoming.data():null;
 
 if(outgoingData&&outgoingData.status==="pending"&&outgoingData.fromUid===currentUser.uid){
-await sendPendingMessage(activeChatUid,text);
+await sendPendingMessage(activeChatUid,text,replyTarget);
 }else if(incomingData&&incomingData.status==="pending"&&incomingData.toUid===currentUser.uid){
-await addMessageToChat(activeChatUid,text,"request-reply");
+await addMessageToChat(activeChatUid,text,"request-reply",replyTarget);
 }else{
 alert("Message request is no longer active.");
 return;
@@ -1233,6 +1441,7 @@ return;
 }
 
 $("chatInput").value="";
+cancelReply();
 
 }catch(error){
 alert("Message could not be sent: "+error.message);
